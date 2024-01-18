@@ -10,6 +10,7 @@ public:
 
   //Homework
   //Print ascii board.
+  void render_board();
 private:
   // board pieces cols and rows. Example:
   //
