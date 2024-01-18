@@ -14,24 +14,22 @@ public:
         m_end_pos[0] = end_pos[0];
         m_end_pos[1] = end_pos[1];
     }
-    //Homework
-    // Create a constructor which converts chess coordinates to array indexes
     Move(const string& s)
     {
+        //changes the numbers in the string to int and subtracts from 8 to reverse the order
+        m_start_pos[0] = 8 - stoi(string(1, s[1]));
+        m_end_pos[0] = 8 - stoi(string(1, s[3]));
+
         //changes the letters in the string to integers that correspond with alphabetical order
         const string alph_order = "abcdefgh";
-        if (std::isalnum(s[0]))
+        if (isalnum(s[0]))
         {
-            m_start_pos[0] = alph_order.find(std::tolower(s[0]));
+            m_start_pos[1] = alph_order.find(tolower(s[0]));
         }
-        if (std::isalnum(s[2]))
+        if (isalnum(s[2]))
         {
-            m_end_pos[0] = alph_order.find(std::tolower(s[2]));
+            m_end_pos[1] = alph_order.find(tolower(s[2]));
         }
-        
-        //changes the numbers in the string to int and subtracts 1 to make it an index
-        m_start_pos[1] = stoi(string(1, s[1])) - 1;
-        m_end_pos[1] = stoi(string(1, s[3])) - 1;
     }
     
 private: 
