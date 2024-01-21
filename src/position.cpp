@@ -1,5 +1,6 @@
 #include "position.h"
 #include <iostream>
+#include <cmath>
 
 
 void Position::clear() {
@@ -24,10 +25,27 @@ void Position::render_board() {
                 if (cols == 8) {
                     std::cout<<"+";
                 } else {
-                    std::cout<<"+---";
+                    if (cols == 0) { 
+                        std::cout<<" +----";
+                    } else {
+                        std::cout<<"+----";
+                    }
                 }
-            } else { 
-                std::cout<<"|   ";
+            } else {
+                int row = floor(rows/2);
+                if (cols == 0) { 
+                    std::cout<<8-row<<"| ";
+                } else {
+                     std::cout<<"| ";
+                }
+                if (cols < 8) {
+                    std::string name = Utils::chess_piece_to_string(m_board[row][cols]);
+                    if (name.size() > 0) {
+                        std::cout<<name<<" ";
+                    } else {
+                        std::cout<<"   ";
+                    }
+                }
             }
         }
         std::cout<<std::endl;
