@@ -1,6 +1,6 @@
 #include "chess.h"
 
-std::string Utils::chess_piece_to_string(int p_index) {
+std::string chess_piece_to_string(int p_index) {
     std::string out = "";
     switch (p_index) {
       case wR: {
@@ -53,4 +53,12 @@ std::string Utils::chess_piece_to_string(int p_index) {
       }
     }
     return out;
+}
+
+int get_chess_piece_color(int p_index) {
+  if (p_index < 6) {
+    return WHITE;
+  } else {
+    return BLACK;
+  }
 }

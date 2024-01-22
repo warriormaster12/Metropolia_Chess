@@ -22,7 +22,6 @@ enum {
   bP,
   NA // Not available (empty cell)
 };
-class Utils {
-public: 
-  static std::string chess_piece_to_string(int p_index); 
-};
+
+std::string chess_piece_to_string(int p_index);
+int get_chess_piece_color(int p_index);

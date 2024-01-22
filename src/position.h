@@ -2,6 +2,7 @@
 
 #include "chess.h"
 #include "move.h"
+#include <vector>
 
 class Position {
 public: 
@@ -11,7 +12,10 @@ public:
   //Homework
   //Print ascii board.
   void render_board();
+  vector<Move> get_tower_raw_move(int row, int col, int player);
+  vector<Move> get_rook_raw_move(int row, int col, int player);
 private:
+  bool check_collision(int row_now, int col_now, int row, int col, int player,vector<Move>& out);
   // board pieces cols and rows. Example:
   //
   // [0][0] : left upper corner ("a8")
