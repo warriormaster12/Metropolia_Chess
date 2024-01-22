@@ -2,6 +2,7 @@
 
 #include "chess.h"
 #include "move.h"
+#include <vector>
 
 class Position {
 public: 
@@ -11,6 +12,9 @@ public:
   //Homework
   //Print ascii board.
   void render_board();
+
+  vector<Move> give_tower_raw_move(int col, int row, int player);
+  
 private:
   // board pieces cols and rows. Example:
   //

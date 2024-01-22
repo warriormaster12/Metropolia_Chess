@@ -2,7 +2,6 @@
 #include <iostream>
 #include <cmath>
 
-
 void Position::clear() {
     for (int rows = 0; rows < 8; rows ++) {
         for (int cols = 0; cols < 8; cols ++) {
@@ -17,37 +16,68 @@ void Position::move(const Move& p_move) {
     m_board[p_move.m_end_pos[0]][p_move.m_end_pos[1]] = chess_piece;
 }
 
+vector<Move> Position::give_tower_raw_move(int row, int col, int player) {
+    int row_now = row;
+    int col_now = col;
+    vector<Move> out;
+    while (true) {
+        row_now--;
+        if (row_now < 0) {
+            break;
+        }
+        if (m_board[row_now][col_now]==NA) {
+            int start_pos[2] = {row, col};
+            int end_pos[2] = {row_now, col_now};
+            out.push_back(Move(start_pos, end_pos));
+            continue;
+        }
+    }
+}
+
 void Position::render_board() {
-    int rowcount = 17;
-    for (int rows = 0; rows < rowcount; rows ++) {
-        for (int cols = 0; cols < 9; cols ++) {
-            if (rows % 2 == 0) {
-                if (cols == 8) {
-                    std::cout<<"+";
-                } else {
-                    if (cols == 0) { 
-                        std::cout<<" +----";
-                    } else {
-                        std::cout<<"+----";
-                    }
-                }
+    int board_size = 8;
+    for (int row = 0; row < board_size; row++) {
+        std::string map = " ";
+        if (row == 0) {
+            map += "\n ";
+            const char *letters = "ABCDEFG";
+            for (int col= 0; col < board_size; col ++){
+                map += "  ";
+                map += letters[col];
+                map += " ";
+            }
+            map += "\n ";
+        }
+        for (int col= 0; col < board_size; col ++) {
+            if (col == board_size - 1) {
+                map += "+\n";
             } else {
-                int row = floor(rows/2);
-                if (cols == 0) { 
-                    std::cout<<8-row<<"| ";
-                } else {
-                     std::cout<<"| ";
-                }
-                if (cols < 8) {
-                    std::string name = Utils::chess_piece_to_string(m_board[row][cols]);
-                    if (name.size() > 0) {
-                        std::cout<<name<<" ";
-                    } else {
-                        std::cout<<"   ";
-                    }
-                }
+                map += "+---";
+            }
+            
+        }
+        for (int col= 0; col < board_size; col ++) {
+            if (col == board_size - 1) {
+                map += "|";
+            }
+            else if (col == 0) {
+                map += std::to_string(board_size - row) + "|   ";
+            } else {
+                map += "|   ";
             }
         }
+        if (row == board_size-1) {
+            map += "\n ";
+            for (int col= 0; col < board_size; col ++) {
+                if (col == board_size - 1) {
+                    map += "+";
+                } else {
+                    map += "+---";
+                }
+                
+            }
+        }
+        std::cout<<map;
         std::cout<<std::endl;
     }
 }
