@@ -2,12 +2,13 @@
 #include <iostream>
 #include <string>
 #include <cctype>
+#include <array>
 using namespace std;
 
 // Describes change in position.
 class Move {
 public: 
-    Move(int start_pos[2], int end_pos[2]) {
+    Move(array<int, 2> start_pos, array<int, 2> end_pos) {
         m_start_pos[0] = start_pos[0];
         m_start_pos[1] = start_pos[1];
 
