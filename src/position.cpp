@@ -58,6 +58,40 @@ vector<Move> Position::get_rook_raw_move(int row, int col, int player) const {
     return out;
 }
 
+vector<Move> Position::get_queen_raw_move(int row, int col, int player) const {
+    vector<Move> out; 
+    vector<Move> rook = get_rook_raw_move(row, col, player);
+    vector<Move> tower = get_tower_raw_move(row, col, player);
+    out.insert(out.end(), rook.begin(), rook.end());
+    out.insert(out.end(), tower.begin(), tower.end());
+    return out;
+}
+
+vector<Move> Position::get_knight_raw_move(int row, int col, int player) const {
+    vector<Move> out;
+    vector<Move> up_right = get_directional_raw_move({row, col}, {1, -2}, player);
+    vector<Move> right_up = get_directional_raw_move({row, col}, {2, -1}, player);
+    vector<Move> right_down = get_directional_raw_move({row, col}, {2, 1}, player);
+    vector<Move> down_right = get_directional_raw_move({row, col}, {1, 2}, player);
+    vector<Move> down_left = get_directional_raw_move({row, col}, {-1, 2}, player);
+    vector<Move> left_down = get_directional_raw_move({row, col}, {-2, 1}, player);
+    vector<Move> left_up = get_directional_raw_move({row, col}, {-2, -1}, player);
+    vector<Move> up_left = get_directional_raw_move({row, col}, {-1, -2}, player);
+    out.insert(out.end(), up_right.begin(), up_right.end());
+    out.insert(out.end(), right_up.begin(), right_up.end());
+    out.insert(out.end(), right_down.begin(), right_down.end());
+    out.insert(out.end(), down_right.begin(), down_right.end());
+    out.insert(out.end(), down_left.begin(), down_left.end());
+    out.insert(out.end(), left_down.begin(), left_down.end());
+    out.insert(out.end(), left_up.begin(), left_up.end());
+    out.insert(out.end(), up_left.begin(), up_left.end());
+    return out;
+}
+
+vector<Move> Position::get_king_raw_move(int row, int col, int player) const {
+    return get_queen_raw_move(row, col, player);
+}
+
 vector<Move> Position::get_directional_raw_move(std::array<int, 2> position, std::array<int, 2> direction, int player) const {
     vector<Move> out;
     int row_now = position[0];
@@ -69,7 +103,7 @@ vector<Move> Position::get_directional_raw_move(std::array<int, 2> position, std
         std::cout<<"no chess piece found"<<std::endl;
         return out;
     }
-    if (chess_piece == wK || chess_piece == bK) {
+    if (chess_piece == wK || chess_piece == bK || chess_piece == wN || chess_piece == bN ) {
         max_moves = 1;
     }
     while (move < max_moves) {
