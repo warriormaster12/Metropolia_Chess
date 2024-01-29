@@ -18,6 +18,7 @@ public:
   vector<Move> get_queen_raw_move(int row, int col, int player) const;
   vector<Move> get_knight_raw_move(int row, int col, int player) const;
   vector<Move> get_king_raw_move(int row, int col, int player) const;
+  vector<Move> get_pawn_raw_move(int row, int col, int player) const;
 private:
   vector<Move> get_directional_raw_move(std::array<int, 2> position, std::array<int, 2> direction, int player) const;
   bool check_collision(int row_now, int col_now, int row, int col,int player,vector<Move>& out) const;

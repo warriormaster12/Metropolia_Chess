@@ -18,9 +18,17 @@ void Position::move(const Move& p_move) {
 }
 bool Position::check_collision(int row_now, int col_now, int row, int col, int player,vector<Move>& out) const {
     int chess_piece = m_board[row][col];
-    bool can_hit = !(chess_piece == wP || chess_piece == bP);
+    bool is_pawn = chess_piece == wP || chess_piece == bP;
+    bool can_hit = !(is_pawn && col_now == col);
+    // Please god don't touch this. It works perfectly trust me bro.
     if (m_board[row_now][col_now]==NA) {
-        out.push_back(Move({row, col}, {row_now, col_now}));
+        if (is_pawn) {
+            if (!can_hit) {
+               out.push_back(Move({row, col}, {row_now, col_now})); 
+            }
+        } else {
+            out.push_back(Move({row, col}, {row_now, col_now}));
+        }
         return true;
     }
     if (get_chess_piece_color(m_board[row_now][col_now]) == player) {
@@ -117,6 +125,51 @@ vector<Move> Position::get_directional_raw_move(std::array<int, 2> position, std
             continue;
         }
         break;
+    }
+    return out;
+}
+
+vector<Move> Position::get_pawn_raw_move(int row, int col, int player) const {
+    vector<Move> out;
+    int row_now = row;
+    int col_now = col;
+    int max_moves = 1;
+    int chess_piece = m_board[row][col];
+    int move = 0;
+    if (chess_piece == NA) {
+        std::cout<<"no chess piece found"<<std::endl;
+        return out;
+    }
+    if ((chess_piece == bP && row == 1) || (chess_piece == wP && row == 6)) {
+        max_moves = 2;
+    }
+    while (move < max_moves) {
+        if (player == BLACK) {
+            row_now += 1;
+        } else {
+            row_now -= 1;
+        }
+        if (row_now < 0 || row_now > 7 || col_now < 0 || col_now > 7) {
+            break;
+        }
+        if (check_collision(row_now, col_now, row, col, player, out)) {
+            move++;
+            continue;
+        }
+        break;
+    }
+    // Eating detection
+    row_now = row;
+    col_now = col;
+    for (int i = 0; i < 2; i++) {
+        col_now = col + (i == 0 ? 1 : -1); 
+        row_now = row + (player == BLACK ? 1 : -1);
+        if (row_now < 0 || row_now > 7 || col_now < 0 || col_now > 7) {
+            continue;
+        }
+        if (check_collision(row_now, col_now, row, col, player, out)) {
+            continue;
+        }
     }
     return out;
 }
