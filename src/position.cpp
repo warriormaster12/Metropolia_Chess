@@ -1,6 +1,7 @@
 #include "position.h"
 #include <iostream>
 #include <cmath>
+#include <cctype>
 
 
 void Position::clear() {
@@ -11,9 +12,95 @@ void Position::clear() {
     }
 }
 
+std::vector<Move> Position::get_all_raw_moves(int player) const {
+    std::vector<Move> out;
+	for (int row = 0; row < 8; row++) {
+		for (int col = 0; col < 8; col++)
+		{
+			int chess_piece = m_board[row][col];
+
+			if (chess_piece == NA)
+				continue;
+
+			if (get_chess_piece_color(chess_piece) != player)
+				continue;
+
+            std::vector<Move> temp;
+			switch (chess_piece)
+			{
+			case wR: case bR:
+                temp = get_rook_raw_move(row, col, player);
+				break;
+			case wQ: case bQ:
+				temp = get_queen_raw_move(row, col, player);
+				break;
+			case wN: case bN:
+				temp = get_knight_raw_move(row, col, player);
+				break;
+			case wB: case bB:
+				temp = get_bishop_raw_move(row, col, player);
+				break;
+			case wK: case bK:
+				temp = get_king_raw_move(row, col, player);
+				break;
+			case wP: case bP:
+				temp = get_pawn_raw_move(row, col, player);
+				break;
+			}
+            if (temp.size() > 0) {
+                out.insert(out.end(), temp.begin(), temp.end());
+            }
+		}
+    }
+
+    return out;
+        
+}
+
 void Position::move(const Move& p_move) {
     int chess_piece = m_board[p_move.m_start_pos[0]][p_move.m_start_pos[1]];
+    int player = get_chess_piece_color(chess_piece);
     m_board[p_move.m_start_pos[0]][p_move.m_start_pos[1]] = NA;
+    if (is_promotable(chess_piece, p_move.m_end_pos[0])) {
+        bool promoted = false;
+        while (!promoted) {
+            std::cout <<"Promote your pawn: \n";
+            std::cout<< "1. Queen \n";
+            std::cout<< "2. Rook \n";
+            std::cout<< "3. Bishop \n";
+            std::cout<< "4. Knight \n";
+            std::string selected_character;
+            std::cout<<"Input number: ";
+            std::cin>>selected_character;
+            if (selected_character.size() == 1 && isdigit(selected_character[0])) {
+                int selected_num = stoi(selected_character);
+                if (selected_num > 0 && selected_num < 5) {
+                    switch (selected_num) {
+                        case 1: {
+                            chess_piece = player == WHITE ? wQ : bQ;
+                            break;
+                        }
+                        case 2: {
+                            chess_piece = player == WHITE ? wR : bR;
+                            break;
+                        }
+                        case 3: {
+                            chess_piece = player == WHITE ? wB : bB;
+                            break;
+                        }
+                        case 4: {
+                            chess_piece = player == WHITE ? wN : bN;
+                            break;
+                        }
+                    
+                    }
+                    promoted = true;
+                }
+            } else {
+                std::cout<<"Invalid input"<<std::endl;
+            }
+        }
+    }
     m_board[p_move.m_end_pos[0]][p_move.m_end_pos[1]] = chess_piece;
 }
 bool Position::check_collision(int row_now, int col_now, int row, int col, int player,vector<Move>& out) const {
@@ -40,7 +127,7 @@ bool Position::check_collision(int row_now, int col_now, int row, int col, int p
     return false;
 }
 
-vector<Move> Position::get_tower_raw_move(int row, int col, int player) const {
+vector<Move> Position::get_rook_raw_move(int row, int col, int player) const {
     vector<Move> out;
     vector<Move> up = get_directional_raw_move({row, col}, {0, -1}, player);
     vector<Move> down = get_directional_raw_move({row, col}, {0, 1}, player);
@@ -53,7 +140,7 @@ vector<Move> Position::get_tower_raw_move(int row, int col, int player) const {
     return out;
 }
 
-vector<Move> Position::get_rook_raw_move(int row, int col, int player) const {
+vector<Move> Position::get_bishop_raw_move(int row, int col, int player) const {
     vector<Move> out;
     vector<Move> up_right = get_directional_raw_move({row, col}, {1, -1}, player);
     vector<Move> up_left = get_directional_raw_move({row, col}, {-1, -1}, player);
@@ -68,8 +155,8 @@ vector<Move> Position::get_rook_raw_move(int row, int col, int player) const {
 
 vector<Move> Position::get_queen_raw_move(int row, int col, int player) const {
     vector<Move> out; 
-    vector<Move> rook = get_rook_raw_move(row, col, player);
-    vector<Move> tower = get_tower_raw_move(row, col, player);
+    vector<Move> rook = get_bishop_raw_move(row, col, player);
+    vector<Move> tower = get_rook_raw_move(row, col, player);
     out.insert(out.end(), rook.begin(), rook.end());
     out.insert(out.end(), tower.begin(), tower.end());
     return out;

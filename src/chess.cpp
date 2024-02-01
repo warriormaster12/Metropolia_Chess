@@ -62,3 +62,7 @@ int get_chess_piece_color(int p_index) {
     return BLACK;
   }
 }
+
+bool is_promotable(int p_piece, int p_destination_row) {
+  return (p_piece == wP && p_destination_row == 0) || (p_piece == bP && p_destination_row == 7);
+}

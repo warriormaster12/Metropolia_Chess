@@ -13,8 +13,9 @@ public:
   //Homework
   //Print ascii board.
   void render_board();
-  vector<Move> get_tower_raw_move(int row, int col, int player) const;
+  std::vector<Move> get_all_raw_moves(int player) const;
   vector<Move> get_rook_raw_move(int row, int col, int player) const;
+  vector<Move> get_bishop_raw_move(int row, int col, int player) const;
   vector<Move> get_queen_raw_move(int row, int col, int player) const;
   vector<Move> get_knight_raw_move(int row, int col, int player) const;
   vector<Move> get_king_raw_move(int row, int col, int player) const;

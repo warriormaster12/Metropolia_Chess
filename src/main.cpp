@@ -4,11 +4,7 @@
 
 int main() {
   Position position;
-  int s[2] = {6,4};
-  int e[2] =  {4,4};
-  Move m("b7b4");
-  position.move(m);
   position.render_board();
-  vector<Move> hello = position.get_pawn_raw_move(4, 1, BLACK);
+  vector<Move> aaaww_yeah = position.get_all_raw_moves(BLACK);
   return 0;
 }
