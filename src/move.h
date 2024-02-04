@@ -32,7 +32,7 @@ public:
             m_end_pos[1] = alph_order.find(tolower(s[2]));
         }
     }
-    
+    string get_coords() const;
 private: 
     // rows and cols
     int m_start_pos[2];

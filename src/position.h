@@ -9,10 +9,8 @@ class Position {
 public: 
   void clear();
   void move(const Move& p_move);
-
-  //Homework
-  //Print ascii board.
   void render_board();
+  void render_legal_moves(const vector<Move>& p_moves);
   std::vector<Move> get_all_raw_moves(int player) const;
   vector<Move> get_rook_raw_move(int row, int col, int player) const;
   vector<Move> get_bishop_raw_move(int row, int col, int player) const;
@@ -20,6 +18,7 @@ public:
   vector<Move> get_knight_raw_move(int row, int col, int player) const;
   vector<Move> get_king_raw_move(int row, int col, int player) const;
   vector<Move> get_pawn_raw_move(int row, int col, int player) const;
+  int get_moving_player() const {return m_movingturn;}  
 private:
   vector<Move> get_directional_raw_move(std::array<int, 2> position, std::array<int, 2> direction, int player) const;
   bool check_collision(int row_now, int col_now, int row, int col,int player,vector<Move>& out) const;

@@ -102,6 +102,11 @@ void Position::move(const Move& p_move) {
         }
     }
     m_board[p_move.m_end_pos[0]][p_move.m_end_pos[1]] = chess_piece;
+    if (m_movingturn == WHITE) {
+        m_movingturn = BLACK;
+    } else if (m_movingturn == BLACK) {
+        m_movingturn = WHITE;
+    }
 }
 bool Position::check_collision(int row_now, int col_now, int row, int col, int player,vector<Move>& out) const {
     int chess_piece = m_board[row][col];
@@ -294,4 +299,14 @@ void Position::render_board() {
         }
         std::cout<<std::endl;
     }
+}
+
+void Position::render_legal_moves(const vector<Move>& p_moves) {
+    std::string letters = "abcdefgh";
+    std::cout<<"valid moves:"<<std::endl;
+    for (int i = 0; i < p_moves.size(); i++) {
+        std::cout<<" "<<p_moves[i].get_coords()<<std::endl;
+    }
+
+    std::cout<<"Legal move count: "<<p_moves.size()<<std::endl;
 }

@@ -4,7 +4,30 @@
 
 int main() {
   Position position;
-  position.render_board();
-  vector<Move> aaaww_yeah = position.get_all_raw_moves(BLACK);
+  vector<Move> moves;
+  moves = position.get_all_raw_moves(position.get_moving_player());
+  while (moves.size() > 0) {
+    position.render_board();
+    position.render_legal_moves(moves);
+    std::string move_coords;
+    bool valid_coords = false;
+    while (!valid_coords) {
+      std::cout<<"Where do you want to move: ";
+      std::cin>>move_coords;
+      for (int i = 0; i < moves.size(); i++) {
+        Move &current = moves[i];
+        if (current.get_coords() == move_coords) {
+          valid_coords = true;
+          break;
+        }
+      }
+      if (!valid_coords) {
+        std::cout<<"no valid coords: "<<move_coords<<std::endl;
+      }
+    }
+    position.move(Move(move_coords));
+    moves.clear();
+    moves = position.get_all_raw_moves(position.get_moving_player());
+  }
   return 0;
 }
