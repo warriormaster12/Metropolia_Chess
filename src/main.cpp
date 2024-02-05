@@ -5,7 +5,7 @@
 int main() {
   Position position;
   vector<Move> moves;
-  moves = position.get_all_raw_moves(position.get_moving_player());
+  moves = position.generate_legal_moves();
   while (moves.size() > 0) {
     position.render_board();
     position.render_legal_moves(moves);
@@ -27,7 +27,7 @@ int main() {
     }
     position.move(Move(move_coords));
     moves.clear();
-    moves = position.get_all_raw_moves(position.get_moving_player());
+    moves = position.generate_legal_moves();
   }
   return 0;
 }

@@ -57,6 +57,50 @@ std::vector<Move> Position::get_all_raw_moves(int player) const {
         
 }
 
+void Position::get_chess_piece(int chess_piece, int& row, int& col) const {
+    for (int i = 0; i < 8; ++i) {
+        for (int j = 0; j < 8; ++j) {
+            if (chess_piece == m_board[i][j]) {
+                row = i; 
+                col = j;
+                return;
+            }
+        }
+    }
+}
+
+bool Position::is_square_threatened(int row, int col, int threatening_player) const {
+    vector<Move> moves = get_all_raw_moves(threatening_player);
+    for (int i=0; i < moves.size(); ++i) {
+        const Move& move = moves[i];
+        if (move.m_end_pos[0] == row && move.m_end_pos[1] == col) {
+            return true;
+        }
+    }
+    return false;
+}
+
+vector<Move> Position::generate_legal_moves() const {
+    int king = m_movingturn == WHITE ? wK : bK;
+    int player = m_movingturn;
+    int opponent = m_movingturn == WHITE ? BLACK : WHITE;
+    std::vector<Move> raw_moves;
+    raw_moves = get_all_raw_moves(player);
+    std::vector<Move> legal_moves;
+    for(const Move& raw_move: raw_moves) {
+        Position test_pos = *this;
+
+        test_pos.move(raw_move);
+        int row, col;
+        test_pos.get_chess_piece(king, row, col);
+        if (!test_pos.is_square_threatened(row, col, opponent)) {
+            legal_moves.push_back(raw_move);
+        }
+    }
+
+    return legal_moves;
+}
+
 void Position::move(const Move& p_move) {
     int chess_piece = m_board[p_move.m_start_pos[0]][p_move.m_start_pos[1]];
     int player = get_chess_piece_color(chess_piece);
