@@ -85,7 +85,9 @@ vector<Move> Position::generate_legal_moves() const {
     int player = m_movingturn;
     int opponent = m_movingturn == WHITE ? BLACK : WHITE;
     std::vector<Move> raw_moves;
+    std::vector<Move> castling_moves = get_castlings(player);
     raw_moves = get_all_raw_moves(player);
+    raw_moves.insert(raw_moves.end(), castling_moves.begin(), castling_moves.end());
     std::vector<Move> legal_moves;
     for(const Move& raw_move: raw_moves) {
         Position test_pos = *this;
@@ -145,6 +147,54 @@ void Position::move(const Move& p_move) {
             }
         }
     }
+    if (chess_piece == wK && p_move.m_start_pos[0] == 7 && p_move.m_start_pos[1] == 4 && p_move.m_end_pos[0] == 7 && p_move.m_end_pos[1] == 6)
+    {
+        m_board[7][7] = NA;
+        m_board[7][5] = wR;
+    }
+    else if (chess_piece == wK && p_move.m_start_pos[0] == 7 && p_move.m_start_pos[1] == 4 && p_move.m_end_pos[0] == 7 && p_move.m_end_pos[1] == 2)
+    {
+        m_board[7][0] = NA;
+        m_board[7][3] = wR;
+    }
+    else if (chess_piece == bK && p_move.m_start_pos[0] == 0 && p_move.m_start_pos[1] == 4 && p_move.m_end_pos[0] == 0 && p_move.m_end_pos[1] == 6)
+    {
+        m_board[0][7] = NA;
+        m_board[0][5] = bR;
+    }
+    else if (chess_piece == bK && p_move.m_start_pos[0] == 0 && p_move.m_start_pos[1] == 4 && p_move.m_end_pos[0] == 0 && p_move.m_end_pos[1] == 2)
+    {
+        m_board[0][0] = NA;
+        m_board[0][3] = bR;
+    }
+
+    if (chess_piece == bK)
+    {
+        m_black_long_castling_allowed = false;
+        m_black_short_castling_allowed = false;
+    }
+    else if (chess_piece == wK)
+    {
+        m_white_long_castling_allowed = false;
+        m_white_short_castling_allowed = false;
+    }
+    if (chess_piece == bR && p_move.m_start_pos[1] == 0 || p_move.m_end_pos[0] == 0 && p_move.m_end_pos[1] == 0)
+    {
+        m_black_long_castling_allowed = false;
+    }
+    else if (chess_piece == bR && p_move.m_start_pos[1] == 7 || p_move.m_end_pos[0] == 0 && p_move.m_end_pos[1] == 7)
+    {
+        m_black_short_castling_allowed = false;
+    }
+    if (chess_piece == wR && p_move.m_start_pos[1] == 0 || p_move.m_end_pos[0] == 7 && p_move.m_end_pos[1] == 0)
+    {
+        m_white_long_castling_allowed = false;
+    }
+    else if (chess_piece == wR && p_move.m_start_pos[1] == 7 || p_move.m_end_pos[0] == 7 && p_move.m_end_pos[1] == 7)
+    {
+        m_white_short_castling_allowed = false;
+    }
+
     m_board[p_move.m_end_pos[0]][p_move.m_end_pos[1]] = chess_piece;
     if (m_movingturn == WHITE) {
         m_movingturn = BLACK;
@@ -305,6 +355,33 @@ vector<Move> Position::get_pawn_raw_move(int row, int col, int player) const {
         }
         if (check_collision(row_now, col_now, row, col, player, out)) {
             continue;
+        }
+    }
+    return out;
+}
+
+vector<Move> Position::get_castlings(int player) const {
+    vector<Move> out;
+    if (player == WHITE)
+    {
+        if (m_white_short_castling_allowed && m_board[7][5] == NA && m_board[7][6] == NA && !is_square_threatened(7, 4, BLACK) && !is_square_threatened(7, 5, BLACK))
+        {
+            out.push_back(Move({7, 4}, {7, 6}));
+        }
+        if (m_white_long_castling_allowed && m_board[7][3] == NA && m_board[7][2] == NA && m_board[7][1] == NA && !is_square_threatened(7, 4, BLACK) && !is_square_threatened(7, 3, BLACK))
+        {
+            out.push_back(Move({7, 4}, {7, 2}));
+        }
+    }
+    else
+    {
+        if (m_black_short_castling_allowed && m_board[0][5] == NA && m_board[0][6] == NA && !is_square_threatened(0, 4, WHITE) && !is_square_threatened(0, 5, WHITE))
+        {
+            out.push_back(Move({0, 4}, {0, 6}));
+        }
+        if (m_black_long_castling_allowed && m_board[0][3] == NA && m_board[0][2] == NA && m_board[0][1] == NA && !is_square_threatened(0, 4, WHITE) && !is_square_threatened(0, 3, WHITE))
+        {
+            out.push_back(Move({0, 4}, {0, 2}));
         }
     }
     return out;

@@ -20,6 +20,7 @@ public:
   vector<Move> get_knight_raw_move(int row, int col, int player) const;
   vector<Move> get_king_raw_move(int row, int col, int player) const;
   vector<Move> get_pawn_raw_move(int row, int col, int player) const;
+  vector<Move> get_castlings(int player) const;
   vector<Move> generate_legal_moves() const;
   int get_moving_player() const {return m_movingturn;}  
 private:
@@ -43,4 +44,12 @@ private:
   };
 
   int m_movingturn = WHITE;
+
+  bool m_white_short_castling_allowed = true;
+  bool m_white_long_castling_allowed = true;
+  bool m_black_short_castling_allowed = true;
+  bool m_black_long_castling_allowed = true;
+
+  int m_doublestep_on_row = -1;
+
 };
