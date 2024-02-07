@@ -7,8 +7,8 @@ int main() {
   vector<Move> moves;
   moves = position.generate_legal_moves();
   while (moves.size() > 0) {
-    position.render_board();
     position.render_legal_moves(moves);
+    position.render_board();
     std::string move_coords;
     bool valid_coords = false;
     while (!valid_coords) {

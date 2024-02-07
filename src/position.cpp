@@ -147,6 +147,8 @@ void Position::move(const Move& p_move) {
             }
         }
     }
+
+    // Castling
     if (chess_piece == wK && p_move.m_start_pos[0] == 7 && p_move.m_start_pos[1] == 4 && p_move.m_end_pos[0] == 7 && p_move.m_end_pos[1] == 6)
     {
         m_board[7][7] = NA;
@@ -178,19 +180,19 @@ void Position::move(const Move& p_move) {
         m_white_long_castling_allowed = false;
         m_white_short_castling_allowed = false;
     }
-    if (chess_piece == bR && p_move.m_start_pos[1] == 0 || p_move.m_end_pos[0] == 0 && p_move.m_end_pos[1] == 0)
+    else if (chess_piece == bR && p_move.m_start_pos[0] == 0 && p_move.m_start_pos[1] == 0 || p_move.m_end_pos[0] == 0 && p_move.m_end_pos[1] == 0)
     {
         m_black_long_castling_allowed = false;
     }
-    else if (chess_piece == bR && p_move.m_start_pos[1] == 7 || p_move.m_end_pos[0] == 0 && p_move.m_end_pos[1] == 7)
+    else if (chess_piece == bR && p_move.m_start_pos[0] == 0 && p_move.m_start_pos[1] == 7 || p_move.m_end_pos[0] == 0 && p_move.m_end_pos[1] == 7)
     {
         m_black_short_castling_allowed = false;
     }
-    if (chess_piece == wR && p_move.m_start_pos[1] == 0 || p_move.m_end_pos[0] == 7 && p_move.m_end_pos[1] == 0)
+    else if (chess_piece == wR && p_move.m_start_pos[0] == 7 && p_move.m_start_pos[1] == 0 || p_move.m_end_pos[0] == 7 && p_move.m_end_pos[1] == 0)
     {
         m_white_long_castling_allowed = false;
     }
-    else if (chess_piece == wR && p_move.m_start_pos[1] == 7 || p_move.m_end_pos[0] == 7 && p_move.m_end_pos[1] == 7)
+    else if (chess_piece == wR && p_move.m_start_pos[0] == 7 && p_move.m_start_pos[1] == 7 || p_move.m_end_pos[0] == 7 && p_move.m_end_pos[1] == 7)
     {
         m_white_short_castling_allowed = false;
     }
@@ -420,6 +422,7 @@ void Position::render_board() {
         }
         std::cout<<std::endl;
     }
+    std::cout<< "    A    B    C    D    E    F    G    H"<<std::endl;
 }
 
 void Position::render_legal_moves(const vector<Move>& p_moves) {
