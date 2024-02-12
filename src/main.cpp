@@ -6,6 +6,7 @@ int main() {
   Position position;
   vector<Move> moves;
   moves = position.generate_legal_moves();
+  //float values = Position::minmax(position, 3);
   while (moves.size() > 0) {
     position.render_legal_moves(moves);
     position.render_board();
@@ -25,7 +26,9 @@ int main() {
         std::cout<<"no valid coords: "<<move_coords<<std::endl;
       }
     }
-    position.move(Move(move_coords));
+    const Move player_move = Move(move_coords);
+    position.move(player_move);
+    position.can_promote(player_move);
     moves.clear();
     moves = position.generate_legal_moves();
   }

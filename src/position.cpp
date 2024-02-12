@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cmath>
 #include <cctype>
+#include <limits>
 
 
 void Position::clear() {
@@ -103,51 +104,81 @@ vector<Move> Position::generate_legal_moves() const {
     return legal_moves;
 }
 
-void Position::move(const Move& p_move) {
-    int chess_piece = m_board[p_move.m_start_pos[0]][p_move.m_start_pos[1]];
-    int player = get_chess_piece_color(chess_piece);
-    m_board[p_move.m_start_pos[0]][p_move.m_start_pos[1]] = NA;
-    if (is_promotable(chess_piece, p_move.m_end_pos[0])) {
-        bool promoted = false;
-        while (!promoted) {
-            std::cout <<"Promote your pawn: \n";
-            std::cout<< "1. Queen \n";
-            std::cout<< "2. Rook \n";
-            std::cout<< "3. Bishop \n";
-            std::cout<< "4. Knight \n";
-            std::string selected_character;
-            std::cout<<"Input number: ";
-            std::cin>>selected_character;
-            if (selected_character.size() == 1 && isdigit(selected_character[0])) {
-                int selected_num = stoi(selected_character);
-                if (selected_num > 0 && selected_num < 5) {
-                    switch (selected_num) {
-                        case 1: {
-                            chess_piece = player == WHITE ? wQ : bQ;
-                            break;
-                        }
-                        case 2: {
-                            chess_piece = player == WHITE ? wR : bR;
-                            break;
-                        }
-                        case 3: {
-                            chess_piece = player == WHITE ? wB : bB;
-                            break;
-                        }
-                        case 4: {
-                            chess_piece = player == WHITE ? wN : bN;
-                            break;
-                        }
-                    
-                    }
-                    promoted = true;
-                }
-            } else {
-                std::cout<<"Invalid input"<<std::endl;
-            }
+float Position::score_end_result() const {
+    if (m_movingturn == WHITE) {
+        int row, col;
+        get_chess_piece(m_movingturn, row, col);
+
+        if (is_square_threatened(row, col, BLACK)) {
+            return -100000;
+        }
+    } else {
+        int row, col;
+        get_chess_piece(m_movingturn, row, col);
+
+        if (is_square_threatened(row, col, WHITE)) {
+            return 100000;
         }
     }
+    return 0;
+}
+float Position::evaluate() const {
+    return 1.0 * material() + 0.05 * mobility();
+}
 
+float Position::material() const {
+    static map<int, float> piece_values = {
+        {wP, 1},{wK, 3}, {wB, 3}, {wR, 5}, {wQ, 9},
+        {bP, -1},{bK, -3}, {bB, -3}, {bR, -5}, {bQ, -9},
+        {NA, 0}
+    };
+
+    float result = 0;
+    for (int row = 0; row < 8; ++row) {
+        for (int col = 0; col < 8; ++col) {
+            int piece = m_board[row][col];
+            result += piece_values[piece];
+        }
+    }
+    return result;
+}
+
+float Position::mobility() const {
+    vector<Move> white_moves = get_all_raw_moves(WHITE); 
+    vector<Move> black_moves = get_all_raw_moves(BLACK);
+
+    return white_moves.size() - black_moves.size();
+}
+
+float Position::minmax(Position &pos, int depth) {
+    vector<Move> legal_moves = pos.generate_legal_moves();
+
+    if (legal_moves.size() == 0) {
+        return pos.score_end_result();
+    }
+
+    if (depth == 0) {
+        return pos.evaluate();
+    }
+
+    float best_value = pos.get_moving_player() == WHITE ? numeric_limits<float>::min() : numeric_limits<float>::max();
+
+    for(Move &move : legal_moves) {
+        Position new_pos = pos;
+        new_pos.move(move);
+        float value = minmax(new_pos, depth -1);
+        if (pos.get_moving_player() == WHITE) {
+            best_value = max(best_value, value);
+        } else {
+            best_value = min(best_value, value);
+        }
+    }
+    return best_value;
+}
+
+void Position::move(const Move& p_move) {
+    int chess_piece = m_board[p_move.m_start_pos[0]][p_move.m_start_pos[1]];
+    m_board[p_move.m_start_pos[0]][p_move.m_start_pos[1]] = NA;
     // Castling
     if (chess_piece == wK && p_move.m_start_pos[0] == 7 && p_move.m_start_pos[1] == 4 && p_move.m_end_pos[0] == 7 && p_move.m_end_pos[1] == 6)
     {
@@ -202,6 +233,51 @@ void Position::move(const Move& p_move) {
         m_movingturn = BLACK;
     } else if (m_movingturn == BLACK) {
         m_movingturn = WHITE;
+    }
+}
+void Position::can_promote(const Move& p_move) {
+    int chess_piece = m_board[p_move.m_end_pos[0]][p_move.m_end_pos[1]];
+    int player = get_chess_piece_color(chess_piece);
+    if (is_promotable(chess_piece, p_move.m_end_pos[0])) {
+        bool promoted = false;
+        while (!promoted) {
+            std::cout <<"Promote your pawn: \n";
+            std::cout<< "1. Queen \n";
+            std::cout<< "2. Rook \n";
+            std::cout<< "3. Bishop \n";
+            std::cout<< "4. Knight \n";
+            std::string selected_character;
+            std::cout<<"Input number: ";
+            std::cin>>selected_character;
+            if (selected_character.size() == 1 && isdigit(selected_character[0])) {
+                int selected_num = stoi(selected_character);
+                if (selected_num > 0 && selected_num < 5) {
+                    switch (selected_num) {
+                        case 1: {
+                            chess_piece = player == WHITE ? wQ : bQ;
+                            break;
+                        }
+                        case 2: {
+                            chess_piece = player == WHITE ? wR : bR;
+                            break;
+                        }
+                        case 3: {
+                            chess_piece = player == WHITE ? wB : bB;
+                            break;
+                        }
+                        case 4: {
+                            chess_piece = player == WHITE ? wN : bN;
+                            break;
+                        }
+                    
+                    }
+                    m_board[p_move.m_end_pos[0]][p_move.m_end_pos[1]] = chess_piece;
+                    promoted = true;
+                }
+            } else {
+                std::cout<<"Invalid input"<<std::endl;
+            }
+        }
     }
 }
 bool Position::check_collision(int row_now, int col_now, int row, int col, int player,vector<Move>& out) const {

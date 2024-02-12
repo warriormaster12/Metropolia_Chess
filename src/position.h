@@ -4,11 +4,13 @@
 #include "move.h"
 #include <vector>
 #include <array>
+#include <map>
 
 class Position {
 public: 
   void clear();
   void move(const Move& p_move);
+  void can_promote(const Move& p_move);
   void render_board();
   void render_legal_moves(const vector<Move>& p_moves);
   std::vector<Move> get_all_raw_moves(int player) const;
@@ -22,7 +24,18 @@ public:
   vector<Move> get_pawn_raw_move(int row, int col, int player) const;
   vector<Move> get_castlings(int player) const;
   vector<Move> generate_legal_moves() const;
-  int get_moving_player() const {return m_movingturn;}  
+  int get_moving_player() const {return m_movingturn;} 
+
+  float score_end_result() const; 
+
+  float evaluate() const;
+
+  float material() const;
+
+  float mobility() const;
+
+  static float minmax(Position &pos, int depth);
+
 private:
   vector<Move> get_directional_raw_move(std::array<int, 2> position, std::array<int, 2> direction, int player) const;
   bool check_collision(int row_now, int col_now, int row, int col,int player,vector<Move>& out) const;
