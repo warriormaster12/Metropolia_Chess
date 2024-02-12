@@ -390,39 +390,43 @@ vector<Move> Position::get_castlings(int player) const {
 }
 
 void Position::render_board() {
-    int rowcount = 17;
-    for (int rows = 0; rows < rowcount; rows ++) {
-        for (int cols = 0; cols < 9; cols ++) {
-            if (rows % 2 == 0) {
-                if (cols == 8) {
-                    std::cout<<"+";
-                } else {
-                    if (cols == 0) { 
-                        std::cout<<" +----";
-                    } else {
-                        std::cout<<"+----";
-                    }
-                }
+    int board_size = 8;
+    for (int row = 0; row < board_size; row++) {
+        std::string map = " ";
+        for (int col= 0; col < board_size + 1; col ++) {
+            if (col == board_size) {
+                map += "+\n";
             } else {
-                int row = floor(rows/2);
-                if (cols == 0) { 
-                    std::cout<<8-row<<"| ";
-                } else {
-                     std::cout<<"| ";
-                }
-                if (cols < 8) {
-                    std::string name = chess_piece_to_string(m_board[row][cols]);
-                    if (name.size() > 0) {
-                        std::cout<<name<<" ";
-                    } else {
-                        std::cout<<"   ";
-                    }
-                }
+                map += "+----";
+            }
+            
+        }
+        for (int col= 0; col < board_size + 1; col ++) {
+            const std::string piece = chess_piece_to_string(m_board[row][col]);
+            if (col == board_size) {
+                map += "|";
+            }
+            else if (col == 0) {
+                map += std::to_string(board_size - row) + (piece.size() > 0 ? "| " + piece + " " : "|    ");
+            } else {
+                map += piece.size() > 0 ? "| " + piece + " " : "|    ";
             }
         }
+        if (row == board_size-1) {
+            map += "\n ";
+            for (int col= 0; col < board_size + 1; col ++) {
+                if (col == board_size) {
+                    map += "+";
+                } else {
+                    map += "+----";
+                }
+                
+            }
+        }
+        std::cout<<map;
         std::cout<<std::endl;
     }
-    std::cout<< "    A    B    C    D    E    F    G    H"<<std::endl;
+    std::cout<< "   A    B    C    D    E    F    G    H"<<std::endl;
 }
 
 void Position::render_legal_moves(const vector<Move>& p_moves) {
