@@ -186,7 +186,7 @@ std::pair<std::vector<Material>,std::vector<MeshNode>> load_gltf(const std::stri
 
                     switch (accessor.componentType) {
                         case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
-                            uint32_t buf[accessor.count];
+                            uint32_t* buf = new uint32_t[accessor.count];
                             memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint32_t));
                             for (size_t index = 0; index < accessor.count; ++index) {
                                 mesh_node.indices[index + starting_indicies_index] = buf[index];
@@ -194,7 +194,7 @@ std::pair<std::vector<Material>,std::vector<MeshNode>> load_gltf(const std::stri
                             break;
                         }
                         case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
-                            uint16_t buf[accessor.count];
+                            uint16_t* buf = new uint16_t[accessor.count];
                             memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint16_t));
                             for (size_t index = 0; index < accessor.count; ++index) {
                                 mesh_node.indices[index + starting_indicies_index] = buf[index];
@@ -202,7 +202,7 @@ std::pair<std::vector<Material>,std::vector<MeshNode>> load_gltf(const std::stri
                             break;
                         }
                         case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE: {
-                            uint8_t buf[accessor.count];
+                            uint8_t* buf = new uint8_t[accessor.count];
                             memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint8_t));
                             for (size_t index = 0; index < accessor.count; ++index) {
                                 mesh_node.indices[index + starting_indicies_index] = buf[index];

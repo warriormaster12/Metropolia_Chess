@@ -673,10 +673,6 @@ void Renderer::render_board(FrameInfo& p_info, const Move& p_move) {
                 continue;
             }
             glm::vec3 pos = node.get_position();
-            int z_dir = (p_move.get_end_pos()[0] - p_move.get_start_pos()[0]);
-            z_dir = z_dir/abs(z_dir);
-            int x_dir = (p_move.get_end_pos()[1] - p_move.get_start_pos()[1]); 
-            x_dir = x_dir/abs(x_dir);
             float row = origin_z - distance * p_move.get_end_pos()[0];
             float col = origin_x -  distance * p_move.get_end_pos()[1];
             float z_distance = std::abs(pos.z - row);
