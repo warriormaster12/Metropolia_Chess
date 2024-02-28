@@ -618,7 +618,6 @@ void Position::render_board() {
 }
 
 void Position::render_legal_moves(const vector<Move>& p_moves) {
-    std::string letters = "abcdefgh";
     std::cout<<"valid moves:"<<std::endl;
     for (int i = 0; i < p_moves.size(); i++) {
         std::cout<<" "<<p_moves[i].get_coords()<<std::endl;

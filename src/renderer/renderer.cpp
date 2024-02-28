@@ -163,8 +163,9 @@ Renderer::Renderer(int width, int height) {
     adapterOpts.compatibleSurface = m_surface.get_compatible_surface();
     adapterOpts.powerPreference = WGPUPowerPreference_HighPerformance;
     m_adapter = rd_utils::requestAdapter(m_instance, &adapterOpts);
-
-    std::cout << "Got adapter: " << m_adapter << std::endl;
+    WGPUAdapterProperties adapter_properties = {};
+    wgpuAdapterGetProperties(m_adapter, &adapter_properties);
+    std::cout << "Got adapter: " << adapter_properties.name << " " << m_adapter << std::endl;
     m_surface.setup_surface_format(m_adapter);
     std::cout << "Requesting device..." << std::endl;
 
