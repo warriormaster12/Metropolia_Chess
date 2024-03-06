@@ -34,6 +34,12 @@ private:
     glm::vec3 m_position;
 };
 
+struct LoaderInfo {
+    std::vector<Material> materials;
+    std::vector<MeshNode> mesh_nodes;
+    glm::vec3 start_position;
+};
+
 namespace model_loader {
-    std::pair<std::vector<Material>,std::vector<MeshNode>> load_gltf(const std::string& file, WGPUDevice& p_device);
+    bool load_gltf(const std::string& file, WGPUDevice& p_device, LoaderInfo& p_out_loader_info) ;
 }

@@ -15,7 +15,6 @@
 #include <array>
 #include <webgpu/webgpu.h>
 
-#include "chess/move.h"
 #include "chess/position.h"
 
 WindowSurface::WindowSurface(WGPUInstance& p_instance,GLFWwindow* p_window){
@@ -252,315 +251,329 @@ WGPUShaderModule create_shader_module(const char* p_filepath, WGPUDevice &p_devi
 
 void Renderer::load_resources() {
     // loading a model
-    std::pair<std::vector<Material>, std::vector<MeshNode>> loaded_info = model_loader::load_gltf("assets/models/chess_set.gltf", m_device);
-    std::vector<Material> materials = loaded_info.first;
-    m_mesh_nodes = loaded_info.second;
-    m_render_pipelines.resize(materials.size());
-    for (int i=0; i < m_render_pipelines.size(); ++i) {
-        RenderPipeline& pipeline = m_render_pipelines[i];
-        pipeline.id = materials[i].id;
-        for (int j=0; j < m_mesh_nodes.size(); j++) {
-            const MeshNode& node = m_mesh_nodes[j];
-            if (pipeline.id == node.material_id) {
-                pipeline.mesh_node_indexes.push_back(j);
+    if (model_loader::load_gltf("assets/models/chess_set.gltf", m_device, m_reference_mesh_load_info)) {
+        std::vector<Material>& materials = m_reference_mesh_load_info.materials;
+        std::vector<MeshNode>& m_mesh_nodes = m_reference_mesh_load_info.mesh_nodes;
+        m_render_pipelines.resize(materials.size());
+        for (int i=0; i < m_render_pipelines.size(); ++i) {
+            RenderPipeline& pipeline = m_render_pipelines[i];
+            pipeline.id = materials[i].id;
+        }
+        ///only the current models transform data size
+        uint32_t model_buffer_stride = rd_utils::ceil_to_next_multiple(sizeof(glm::mat4x4), m_storage_alignment);
+        //all chess pieces plus one board 
+        uint32_t model_buffer_size = model_buffer_stride * 33;
+        {
+            WGPUBufferDescriptor model_transformation_matrix_description = {};
+            model_transformation_matrix_description.label = "Model transformation matrix buffer";
+            model_transformation_matrix_description.mappedAtCreation = false;
+            model_transformation_matrix_description.nextInChain = nullptr;
+            model_transformation_matrix_description.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
+            model_transformation_matrix_description.size = model_buffer_size;
+            m_model_matrix_buffer = wgpuDeviceCreateBuffer(m_device, &model_transformation_matrix_description);
+        }
+        {
+            size_t total_index_buffer_size = 0;
+            size_t total_vertex_buffer_size = 0;
+            for (int i = 0; i < m_mesh_nodes.size(); ++i) {
+                const MeshNode& node = m_mesh_nodes[i];
+                if (!m_vertex_offsets.contains(node.id)) {
+                    m_vertex_offsets[node.id] = total_vertex_buffer_size;
+                    total_vertex_buffer_size += node.verticies.size() * sizeof(Vertex);
+                }
+                if (!m_index_offsets.contains(node.id)) {
+                    m_index_offsets[node.id] = total_index_buffer_size;
+                    total_index_buffer_size += node.indices.size() * sizeof(uint32_t);
+                }
+            }
+            WGPUBufferDescriptor vertex_buffer_description = {};
+            vertex_buffer_description.label = "Global vertex buffer";
+            vertex_buffer_description.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
+            vertex_buffer_description.mappedAtCreation = false;
+            vertex_buffer_description.size = total_vertex_buffer_size;
+            
+            m_global_vertex_buffer = wgpuDeviceCreateBuffer(m_device, &vertex_buffer_description);
+
+            WGPUBufferDescriptor index_buffer_description = {};
+            index_buffer_description.label = "Global index buffer";
+            index_buffer_description.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
+            index_buffer_description.mappedAtCreation = false;
+            index_buffer_description.size = total_index_buffer_size;
+
+            m_global_index_buffer = wgpuDeviceCreateBuffer(m_device, &index_buffer_description);
+
+            for (int i = 0; i < m_mesh_nodes.size(); ++i) {
+                const MeshNode& node = m_mesh_nodes[i];
+                wgpuQueueWriteBuffer(m_graphics_queue, m_global_vertex_buffer, m_vertex_offsets.at(node.id), node.verticies.data(), sizeof(Vertex) * node.verticies.size());
+                wgpuQueueWriteBuffer(m_graphics_queue, m_global_index_buffer, m_index_offsets.at(node.id), node.indices.data(), sizeof(uint32_t) * node.indices.size());
             }
         }
-    }
-    uint32_t m_model_buffer_size = rd_utils::ceil_to_next_multiple(sizeof(glm::mat4x4), m_storage_alignment) * m_mesh_nodes.size();
-    uint32_t m_model_buffer_stride = rd_utils::ceil_to_next_multiple(sizeof(glm::mat4x4), m_storage_alignment);
-    {
-        WGPUBufferDescriptor model_transformation_matrix_description = {};
-        model_transformation_matrix_description.label = "Model transformation matrix buffer";
-        model_transformation_matrix_description.mappedAtCreation = false;
-        model_transformation_matrix_description.nextInChain = nullptr;
-        model_transformation_matrix_description.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
-        model_transformation_matrix_description.size = m_model_buffer_size;
-        m_model_matrix_buffer = wgpuDeviceCreateBuffer(m_device, &model_transformation_matrix_description);
-    }
-    {
-        size_t total_index_buffer_size = 0;
-        size_t total_vertex_buffer_size = 0;
-        for (int i = 0; i < m_mesh_nodes.size(); ++i) {
-            const MeshNode& node = m_mesh_nodes[i];
-            std::string id;
-            std::string color;
-            rd_utils::parse_string(node.id, &id, &color);
-            if (id.length() == 0) {
-                id = node.id;
+
+        // create texture sampler
+        WGPUSamplerDescriptor sampler_desc = {};
+        sampler_desc.addressModeU = WGPUAddressMode_Repeat;
+        sampler_desc.addressModeV = WGPUAddressMode_Repeat;
+        sampler_desc.addressModeW = WGPUAddressMode_Repeat;
+        sampler_desc.magFilter = WGPUFilterMode_Linear;
+        sampler_desc.minFilter = WGPUFilterMode_Linear;
+        sampler_desc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+        sampler_desc.lodMinClamp = 0.0f;
+        sampler_desc.lodMaxClamp = 8.0f;
+        sampler_desc.compare = WGPUCompareFunction_Undefined;
+        sampler_desc.maxAnisotropy = 1;
+        m_global_sampler = wgpuDeviceCreateSampler(m_device,&sampler_desc);
+
+        // creating a pipeline for the shader
+        WGPUShaderModule shader_module = create_shader_module("assets/shaders/chess_shader.wgsl", m_device);
+        if (shader_module) {
+            // Create bind groups
+            WGPUBindGroupLayoutEntry camera_layout_entry = {};
+            rd_utils::set_bind_group_entry_default(camera_layout_entry);
+            camera_layout_entry.binding = 0;
+            camera_layout_entry.visibility = WGPUShaderStage_Vertex;
+            camera_layout_entry.buffer.type = WGPUBufferBindingType_Uniform;
+            camera_layout_entry.buffer.minBindingSize = sizeof(glm::mat4x4);
+
+            WGPUBindGroupLayoutDescriptor camera_bind_group_layout_description = {};
+            camera_bind_group_layout_description.entries = &camera_layout_entry;
+            camera_bind_group_layout_description.entryCount = 1;
+            WGPUBindGroupLayout camera_bind_group_layout = wgpuDeviceCreateBindGroupLayout(m_device, &camera_bind_group_layout_description);
+
+            WGPUBindGroupLayoutEntry model_layout_entry = {};
+            rd_utils::set_bind_group_entry_default(model_layout_entry);
+            model_layout_entry.binding = 0;
+            model_layout_entry.visibility = WGPUShaderStage_Vertex;
+            model_layout_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+            model_layout_entry.buffer.hasDynamicOffset = true;
+            model_layout_entry.buffer.minBindingSize = model_buffer_stride;
+
+            WGPUBindGroupLayoutDescriptor model_bind_group_layout_description = {};
+            model_bind_group_layout_description.entries = &model_layout_entry;
+            model_bind_group_layout_description.entryCount = 1;
+            WGPUBindGroupLayout model_bind_group_layout = wgpuDeviceCreateBindGroupLayout(m_device, &model_bind_group_layout_description);
+
+            WGPUBindGroupLayoutEntry sampler_layout_entry = {};
+            rd_utils::set_bind_group_entry_default(sampler_layout_entry);
+            sampler_layout_entry.binding = 0;
+            sampler_layout_entry.visibility = WGPUShaderStage_Fragment;
+            sampler_layout_entry.sampler.type = WGPUSamplerBindingType_Filtering;
+            
+            WGPUBindGroupLayoutEntry texture_view_layout_entry = {};
+            rd_utils::set_bind_group_entry_default(texture_view_layout_entry);
+            texture_view_layout_entry.binding = 1;
+            texture_view_layout_entry.visibility = WGPUShaderStage_Fragment;
+            texture_view_layout_entry.texture.sampleType = WGPUTextureSampleType_Float;
+            texture_view_layout_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+            WGPUBindGroupLayoutEntry material_layout_entries[2] = {sampler_layout_entry, texture_view_layout_entry};
+
+            WGPUBindGroupLayoutDescriptor material_bind_group_layout_description = {};
+            material_bind_group_layout_description.entries = material_layout_entries;
+            material_bind_group_layout_description.entryCount = 2;
+            WGPUBindGroupLayout material_bind_group_layout = wgpuDeviceCreateBindGroupLayout(m_device, &material_bind_group_layout_description);
+
+            std::array<WGPUBindGroupLayout, 3> bind_group_layouts = {camera_bind_group_layout, model_bind_group_layout, material_bind_group_layout};
+
+            // Create bind group itself
+            m_camera = Camera(m_device);
+            WGPUBindGroupEntry camera_bind_group_entry = {};
+            camera_bind_group_entry.nextInChain = nullptr;
+            camera_bind_group_entry.size = sizeof(glm::mat4x4);
+            camera_bind_group_entry.binding = 0;
+            camera_bind_group_entry.offset = 0;
+            camera_bind_group_entry.buffer = m_camera.buffer;
+            camera_bind_group_entry.textureView = nullptr;
+            camera_bind_group_entry.sampler = nullptr;
+
+            WGPUBindGroupEntry model_bind_group_entry = {};
+            model_bind_group_entry.nextInChain = nullptr;
+            model_bind_group_entry.size = model_buffer_stride;
+            model_bind_group_entry.binding = 0;
+            model_bind_group_entry.offset = 0;
+            model_bind_group_entry.buffer = m_model_matrix_buffer;
+            model_bind_group_entry.textureView = nullptr;
+            model_bind_group_entry.sampler = nullptr;
+
+            WGPUBindGroupDescriptor camera_bind_group_description = {};
+            camera_bind_group_description.label = "camera chess bind group";
+            camera_bind_group_description.entryCount = 1; 
+            camera_bind_group_description.entries = &camera_bind_group_entry;
+            camera_bind_group_description.nextInChain = nullptr;
+            camera_bind_group_description.layout = camera_bind_group_layout;
+
+            WGPUBindGroupDescriptor model_bind_group_description = {};
+            model_bind_group_description.label = "model chess bind group";
+            model_bind_group_description.entryCount = 1; 
+            model_bind_group_description.entries = &model_bind_group_entry;
+            model_bind_group_description.nextInChain = nullptr;
+            model_bind_group_description.layout = model_bind_group_layout;
+
+
+            WGPUBindGroupEntry sampler_bind_group_entry = {};
+            sampler_bind_group_entry.nextInChain = nullptr;
+            sampler_bind_group_entry.size = 0;
+            sampler_bind_group_entry.binding = 0;
+            sampler_bind_group_entry.offset = 0;
+            sampler_bind_group_entry.buffer = nullptr;
+            sampler_bind_group_entry.textureView = nullptr;
+            sampler_bind_group_entry.sampler = m_global_sampler;
+
+            for (int i = 0; i < materials.size(); ++i) {
+
+                WGPUBindGroupEntry texture_view_bind_group_entry = {};
+                texture_view_bind_group_entry.nextInChain = nullptr;
+                texture_view_bind_group_entry.size = 0;
+                texture_view_bind_group_entry.binding = 1;
+                texture_view_bind_group_entry.offset = 0;
+                texture_view_bind_group_entry.buffer = nullptr;
+                texture_view_bind_group_entry.textureView = materials[i].base_color_view;
+                texture_view_bind_group_entry.sampler = nullptr;
+
+                WGPUBindGroupEntry material_bind_group_entries[2] = {sampler_bind_group_entry, texture_view_bind_group_entry};
+                WGPUBindGroupDescriptor material_bind_group_description = {};
+                material_bind_group_description.label = "material chess bind group";
+                material_bind_group_description.entryCount = 2; 
+                material_bind_group_description.entries = material_bind_group_entries;
+                material_bind_group_description.nextInChain = nullptr;
+                material_bind_group_description.layout = material_bind_group_layout;
+
+                m_render_pipelines[i].material_group = wgpuDeviceCreateBindGroup(m_device, &material_bind_group_description);
             }
-            if (id == "knight") {
-                id += "_" + color;
+            m_chess_camera_bind_group = wgpuDeviceCreateBindGroup(m_device, &camera_bind_group_description);
+            m_chess_model_bind_group = wgpuDeviceCreateBindGroup(m_device, &model_bind_group_description);
+
+            for (int i = 0; i < m_render_pipelines.size(); ++i) {
+                WGPUVertexAttribute attributes[3];
+                attributes[0].shaderLocation = 0;
+                attributes[0].format = WGPUVertexFormat_Float32x3;
+                attributes[0].offset = offsetof(Vertex, position);
+                attributes[1].shaderLocation = 1;
+                attributes[1].format = WGPUVertexFormat_Float32x3;
+                attributes[1].offset = offsetof(Vertex, normal);
+                attributes[2].shaderLocation = 2;
+                attributes[2].format = WGPUVertexFormat_Float32x2;
+                attributes[2].offset = offsetof(Vertex, uv);
+                WGPUVertexBufferLayout vertex_buffer_layout = {};
+                vertex_buffer_layout.stepMode = WGPUVertexStepMode_Vertex;
+                vertex_buffer_layout.arrayStride = sizeof(Vertex);
+                vertex_buffer_layout.attributeCount = 3;
+                vertex_buffer_layout.attributes = attributes;
+
+                WGPURenderPipelineDescriptor pipeline_descriptor = {};
+                pipeline_descriptor.vertex.bufferCount = 1;
+                pipeline_descriptor.vertex.buffers = &vertex_buffer_layout;
+                pipeline_descriptor.vertex.module = shader_module;
+                pipeline_descriptor.vertex.entryPoint = "vs_main";
+                pipeline_descriptor.vertex.constantCount = 0;
+                pipeline_descriptor.vertex.constants = nullptr;
+                pipeline_descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;  
+                pipeline_descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+                pipeline_descriptor.primitive.frontFace = WGPUFrontFace_CCW;
+                pipeline_descriptor.primitive.cullMode = WGPUCullMode_Back;
+
+                WGPUFragmentState fragment_state = {};
+                fragment_state.nextInChain = nullptr;
+                fragment_state.module = shader_module;
+                fragment_state.entryPoint = "fs_main";
+                fragment_state.constantCount = 0;
+                fragment_state.constants = nullptr;
+                pipeline_descriptor.fragment = &fragment_state;
+
+                // Configure blend state
+                WGPUBlendState blend_state;
+                // Usual alpha blending for the color:
+                blend_state.color.srcFactor = WGPUBlendFactor_SrcAlpha;
+                blend_state.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+                blend_state.color.operation = WGPUBlendOperation_Add;
+                // We leave the target alpha untouched:
+                blend_state.alpha.srcFactor = WGPUBlendFactor_Zero;
+                blend_state.alpha.dstFactor = WGPUBlendFactor_One;
+                blend_state.alpha.operation = WGPUBlendOperation_Add;
+
+                WGPUColorTargetState colorTarget = {};
+                colorTarget.nextInChain = nullptr;
+                colorTarget.format = m_surface.m_swapchain_format;
+                colorTarget.blend = &blend_state;
+                colorTarget.writeMask = WGPUColorWriteMask_All; // We could write to only some of the color channels.
+
+                // We have only one target because our render pass has only one output color
+                // attachment.
+                fragment_state.targetCount = 1;
+                fragment_state.targets = &colorTarget;
+                WGPUDepthStencilState depth_stencil_state = {};
+                depth_stencil_state.format = m_surface.m_depth_texture_format;
+                depth_stencil_state.depthWriteEnabled = true;
+                depth_stencil_state.depthCompare = WGPUCompareFunction_LessEqual;
+                depth_stencil_state.stencilReadMask = 0xFFFFFFFF;
+                depth_stencil_state.stencilWriteMask = 0xFFFFFFFF;
+                depth_stencil_state.depthBias = 0;
+                depth_stencil_state.depthBiasSlopeScale = 0;
+                depth_stencil_state.depthBiasClamp = 0;
+                rd_utils::set_stencil_face_default(depth_stencil_state.stencilFront);
+                rd_utils::set_stencil_face_default(depth_stencil_state.stencilBack);
+                pipeline_descriptor.depthStencil = &depth_stencil_state;
+
+                // Multi-sampling
+                // Samples per pixel
+                pipeline_descriptor.multisample.count = 1;
+                // Default value for the mask, meaning "all bits on"
+                pipeline_descriptor.multisample.mask = ~0u;
+                // Default value as well (irrelevant for count = 1 anyways)
+                pipeline_descriptor.multisample.alphaToCoverageEnabled = false;
+
+                WGPUPipelineLayoutDescriptor pipeline_layout_description = {};
+                pipeline_layout_description.label = "Chess pipeline layout";
+                pipeline_layout_description.nextInChain = nullptr;
+                pipeline_layout_description.bindGroupLayouts = bind_group_layouts.data();
+                pipeline_layout_description.bindGroupLayoutCount = bind_group_layouts.size();
+                // Pipeline layout
+                pipeline_descriptor.layout = wgpuDeviceCreatePipelineLayout(m_device, &pipeline_layout_description);
+
+                m_render_pipelines[i].pipeline = wgpuDeviceCreateRenderPipeline(m_device, &pipeline_descriptor);
             }
-            if (!m_vertex_offsets.contains(id)) {
-                m_vertex_offsets[id] = total_vertex_buffer_size;
-                total_vertex_buffer_size += node.verticies.size() * sizeof(Vertex);
-            }
-            if (!m_index_offsets.contains(id)) {
-                m_index_offsets[id] = total_index_buffer_size;
-                total_index_buffer_size += node.indices.size() * sizeof(uint32_t);
-            }
-        }
-        WGPUBufferDescriptor vertex_buffer_description = {};
-        vertex_buffer_description.label = "Global vertex buffer";
-        vertex_buffer_description.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
-        vertex_buffer_description.mappedAtCreation = false;
-        vertex_buffer_description.size = total_vertex_buffer_size;
-        
-        m_global_vertex_buffer = wgpuDeviceCreateBuffer(m_device, &vertex_buffer_description);
-
-        WGPUBufferDescriptor index_buffer_description = {};
-        index_buffer_description.label = "Global index buffer";
-        index_buffer_description.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
-        index_buffer_description.mappedAtCreation = false;
-        index_buffer_description.size = total_index_buffer_size;
-
-        m_global_index_buffer = wgpuDeviceCreateBuffer(m_device, &index_buffer_description);
-
-        for (int i = 0; i < m_mesh_nodes.size(); ++i) {
-            const MeshNode& node = m_mesh_nodes[i];
-            std::string id;
-            std::string color;
-            rd_utils::parse_string(node.id, &id, &color);
-            if (id.length() == 0) {
-                id = node.id;
-            }
-            if (id == "knight") {
-                id += "_" + color;
-            }
-            wgpuQueueWriteBuffer(m_graphics_queue, m_global_vertex_buffer, m_vertex_offsets.at(id), node.verticies.data(), sizeof(Vertex) * node.verticies.size());
-            wgpuQueueWriteBuffer(m_graphics_queue, m_global_index_buffer, m_index_offsets.at(id), node.indices.data(), sizeof(uint32_t) * node.indices.size());
-            if (!m_model_matrix_offsets.contains(node.id)) {
-                m_model_matrix_offsets[node.id] = m_model_buffer_stride * i;
-            }
-        }
-    }
-
-    // create texture sampler
-    WGPUSamplerDescriptor sampler_desc = {};
-	sampler_desc.addressModeU = WGPUAddressMode_Repeat;
-	sampler_desc.addressModeV = WGPUAddressMode_Repeat;
-	sampler_desc.addressModeW = WGPUAddressMode_Repeat;
-	sampler_desc.magFilter = WGPUFilterMode_Linear;
-	sampler_desc.minFilter = WGPUFilterMode_Linear;
-	sampler_desc.mipmapFilter = WGPUMipmapFilterMode_Linear;
-	sampler_desc.lodMinClamp = 0.0f;
-	sampler_desc.lodMaxClamp = 8.0f;
-	sampler_desc.compare = WGPUCompareFunction_Undefined;
-	sampler_desc.maxAnisotropy = 1;
-	m_global_sampler = wgpuDeviceCreateSampler(m_device,&sampler_desc);
-
-    // creating a pipeline for the shader
-    WGPUShaderModule shader_module = create_shader_module("assets/shaders/chess_shader.wgsl", m_device);
-    if (shader_module) {
-        // Create bind groups
-        WGPUBindGroupLayoutEntry camera_layout_entry = {};
-        rd_utils::set_bind_group_entry_default(camera_layout_entry);
-        camera_layout_entry.binding = 0;
-        camera_layout_entry.visibility = WGPUShaderStage_Vertex;
-        camera_layout_entry.buffer.type = WGPUBufferBindingType_Uniform;
-        camera_layout_entry.buffer.minBindingSize = sizeof(glm::mat4x4);
-
-        WGPUBindGroupLayoutDescriptor camera_bind_group_layout_description = {};
-        camera_bind_group_layout_description.entries = &camera_layout_entry;
-        camera_bind_group_layout_description.entryCount = 1;
-        WGPUBindGroupLayout camera_bind_group_layout = wgpuDeviceCreateBindGroupLayout(m_device, &camera_bind_group_layout_description);
-
-        WGPUBindGroupLayoutEntry model_layout_entry = {};
-        rd_utils::set_bind_group_entry_default(model_layout_entry);
-        model_layout_entry.binding = 0;
-        model_layout_entry.visibility = WGPUShaderStage_Vertex;
-        model_layout_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-        model_layout_entry.buffer.hasDynamicOffset = true;
-        model_layout_entry.buffer.minBindingSize = m_model_buffer_stride;
-
-        WGPUBindGroupLayoutDescriptor model_bind_group_layout_description = {};
-        model_bind_group_layout_description.entries = &model_layout_entry;
-        model_bind_group_layout_description.entryCount = 1;
-        WGPUBindGroupLayout model_bind_group_layout = wgpuDeviceCreateBindGroupLayout(m_device, &model_bind_group_layout_description);
-
-        WGPUBindGroupLayoutEntry sampler_layout_entry = {};
-        rd_utils::set_bind_group_entry_default(sampler_layout_entry);
-        sampler_layout_entry.binding = 0;
-        sampler_layout_entry.visibility = WGPUShaderStage_Fragment;
-        sampler_layout_entry.sampler.type = WGPUSamplerBindingType_Filtering;
-        
-        WGPUBindGroupLayoutEntry texture_view_layout_entry = {};
-        rd_utils::set_bind_group_entry_default(texture_view_layout_entry);
-        texture_view_layout_entry.binding = 1;
-        texture_view_layout_entry.visibility = WGPUShaderStage_Fragment;
-        texture_view_layout_entry.texture.sampleType = WGPUTextureSampleType_Float;
-        texture_view_layout_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-
-        WGPUBindGroupLayoutEntry material_layout_entries[2] = {sampler_layout_entry, texture_view_layout_entry};
-
-        WGPUBindGroupLayoutDescriptor material_bind_group_layout_description = {};
-        material_bind_group_layout_description.entries = material_layout_entries;
-        material_bind_group_layout_description.entryCount = 2;
-        WGPUBindGroupLayout material_bind_group_layout = wgpuDeviceCreateBindGroupLayout(m_device, &material_bind_group_layout_description);
-
-        std::array<WGPUBindGroupLayout, 3> bind_group_layouts = {camera_bind_group_layout, model_bind_group_layout, material_bind_group_layout};
-
-        // Create bind group itself
-        m_camera = Camera(m_device);
-        WGPUBindGroupEntry camera_bind_group_entry = {};
-        camera_bind_group_entry.nextInChain = nullptr;
-        camera_bind_group_entry.size = sizeof(glm::mat4x4);
-        camera_bind_group_entry.binding = 0;
-        camera_bind_group_entry.offset = 0;
-        camera_bind_group_entry.buffer = m_camera.buffer;
-        camera_bind_group_entry.textureView = nullptr;
-        camera_bind_group_entry.sampler = nullptr;
-
-        WGPUBindGroupEntry model_bind_group_entry = {};
-        model_bind_group_entry.nextInChain = nullptr;
-        model_bind_group_entry.size = m_model_buffer_stride;
-        model_bind_group_entry.binding = 0;
-        model_bind_group_entry.offset = 0;
-        model_bind_group_entry.buffer = m_model_matrix_buffer;
-        model_bind_group_entry.textureView = nullptr;
-        model_bind_group_entry.sampler = nullptr;
-
-        WGPUBindGroupDescriptor camera_bind_group_description = {};
-        camera_bind_group_description.label = "camera chess bind group";
-        camera_bind_group_description.entryCount = 1; 
-        camera_bind_group_description.entries = &camera_bind_group_entry;
-        camera_bind_group_description.nextInChain = nullptr;
-        camera_bind_group_description.layout = camera_bind_group_layout;
-
-        WGPUBindGroupDescriptor model_bind_group_description = {};
-        model_bind_group_description.label = "model chess bind group";
-        model_bind_group_description.entryCount = 1; 
-        model_bind_group_description.entries = &model_bind_group_entry;
-        model_bind_group_description.nextInChain = nullptr;
-        model_bind_group_description.layout = model_bind_group_layout;
-
-
-        WGPUBindGroupEntry sampler_bind_group_entry = {};
-        sampler_bind_group_entry.nextInChain = nullptr;
-        sampler_bind_group_entry.size = 0;
-        sampler_bind_group_entry.binding = 0;
-        sampler_bind_group_entry.offset = 0;
-        sampler_bind_group_entry.buffer = nullptr;
-        sampler_bind_group_entry.textureView = nullptr;
-        sampler_bind_group_entry.sampler = m_global_sampler;
-
-        for (int i = 0; i < materials.size(); ++i) {
-
-            WGPUBindGroupEntry texture_view_bind_group_entry = {};
-            texture_view_bind_group_entry.nextInChain = nullptr;
-            texture_view_bind_group_entry.size = 0;
-            texture_view_bind_group_entry.binding = 1;
-            texture_view_bind_group_entry.offset = 0;
-            texture_view_bind_group_entry.buffer = nullptr;
-            texture_view_bind_group_entry.textureView = materials[i].base_color_view;
-            texture_view_bind_group_entry.sampler = nullptr;
-
-            WGPUBindGroupEntry material_bind_group_entries[2] = {sampler_bind_group_entry, texture_view_bind_group_entry};
-            WGPUBindGroupDescriptor material_bind_group_description = {};
-            material_bind_group_description.label = "material chess bind group";
-            material_bind_group_description.entryCount = 2; 
-            material_bind_group_description.entries = material_bind_group_entries;
-            material_bind_group_description.nextInChain = nullptr;
-            material_bind_group_description.layout = material_bind_group_layout;
-
-            m_render_pipelines[i].material_group = wgpuDeviceCreateBindGroup(m_device, &material_bind_group_description);
-        }
-        m_chess_camera_bind_group = wgpuDeviceCreateBindGroup(m_device, &camera_bind_group_description);
-        m_chess_model_bind_group = wgpuDeviceCreateBindGroup(m_device, &model_bind_group_description);
-
-        for (int i = 0; i < m_render_pipelines.size(); ++i) {
-            WGPUVertexAttribute attributes[3];
-            attributes[0].shaderLocation = 0;
-            attributes[0].format = WGPUVertexFormat_Float32x3;
-            attributes[0].offset = offsetof(Vertex, position);
-            attributes[1].shaderLocation = 1;
-            attributes[1].format = WGPUVertexFormat_Float32x3;
-            attributes[1].offset = offsetof(Vertex, normal);
-            attributes[2].shaderLocation = 2;
-            attributes[2].format = WGPUVertexFormat_Float32x2;
-            attributes[2].offset = offsetof(Vertex, uv);
-            WGPUVertexBufferLayout vertex_buffer_layout = {};
-            vertex_buffer_layout.stepMode = WGPUVertexStepMode_Vertex;
-            vertex_buffer_layout.arrayStride = sizeof(Vertex);
-            vertex_buffer_layout.attributeCount = 3;
-            vertex_buffer_layout.attributes = attributes;
-
-            WGPURenderPipelineDescriptor pipeline_descriptor = {};
-            pipeline_descriptor.vertex.bufferCount = 1;
-            pipeline_descriptor.vertex.buffers = &vertex_buffer_layout;
-            pipeline_descriptor.vertex.module = shader_module;
-            pipeline_descriptor.vertex.entryPoint = "vs_main";
-            pipeline_descriptor.vertex.constantCount = 0;
-            pipeline_descriptor.vertex.constants = nullptr;
-            pipeline_descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;  
-            pipeline_descriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
-            pipeline_descriptor.primitive.frontFace = WGPUFrontFace_CCW;
-            pipeline_descriptor.primitive.cullMode = WGPUCullMode_Back;
-
-            WGPUFragmentState fragment_state = {};
-            fragment_state.nextInChain = nullptr;
-            fragment_state.module = shader_module;
-            fragment_state.entryPoint = "fs_main";
-            fragment_state.constantCount = 0;
-            fragment_state.constants = nullptr;
-            pipeline_descriptor.fragment = &fragment_state;
-
-            // Configure blend state
-            WGPUBlendState blend_state;
-            // Usual alpha blending for the color:
-            blend_state.color.srcFactor = WGPUBlendFactor_SrcAlpha;
-            blend_state.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-            blend_state.color.operation = WGPUBlendOperation_Add;
-            // We leave the target alpha untouched:
-            blend_state.alpha.srcFactor = WGPUBlendFactor_Zero;
-            blend_state.alpha.dstFactor = WGPUBlendFactor_One;
-            blend_state.alpha.operation = WGPUBlendOperation_Add;
-
-            WGPUColorTargetState colorTarget = {};
-            colorTarget.nextInChain = nullptr;
-            colorTarget.format = m_surface.m_swapchain_format;
-            colorTarget.blend = &blend_state;
-            colorTarget.writeMask = WGPUColorWriteMask_All; // We could write to only some of the color channels.
-
-            // We have only one target because our render pass has only one output color
-            // attachment.
-            fragment_state.targetCount = 1;
-            fragment_state.targets = &colorTarget;
-            WGPUDepthStencilState depth_stencil_state = {};
-            depth_stencil_state.format = m_surface.m_depth_texture_format;
-            depth_stencil_state.depthWriteEnabled = true;
-            depth_stencil_state.depthCompare = WGPUCompareFunction_LessEqual;
-            depth_stencil_state.stencilReadMask = 0xFFFFFFFF;
-            depth_stencil_state.stencilWriteMask = 0xFFFFFFFF;
-            depth_stencil_state.depthBias = 0;
-            depth_stencil_state.depthBiasSlopeScale = 0;
-            depth_stencil_state.depthBiasClamp = 0;
-            rd_utils::set_stencil_face_default(depth_stencil_state.stencilFront);
-            rd_utils::set_stencil_face_default(depth_stencil_state.stencilBack);
-            pipeline_descriptor.depthStencil = &depth_stencil_state;
-
-            // Multi-sampling
-            // Samples per pixel
-            pipeline_descriptor.multisample.count = 1;
-            // Default value for the mask, meaning "all bits on"
-            pipeline_descriptor.multisample.mask = ~0u;
-            // Default value as well (irrelevant for count = 1 anyways)
-            pipeline_descriptor.multisample.alphaToCoverageEnabled = false;
-
-            WGPUPipelineLayoutDescriptor pipeline_layout_description = {};
-            pipeline_layout_description.label = "Chess pipeline layout";
-            pipeline_layout_description.nextInChain = nullptr;
-            pipeline_layout_description.bindGroupLayouts = bind_group_layouts.data();
-            pipeline_layout_description.bindGroupLayoutCount = bind_group_layouts.size();
-            // Pipeline layout
-            pipeline_descriptor.layout = wgpuDeviceCreatePipelineLayout(m_device, &pipeline_layout_description);
-
-            m_render_pipelines[i].pipeline = wgpuDeviceCreateRenderPipeline(m_device, &pipeline_descriptor);
         }
     }
 }
 
-FrameInfo Renderer::prepare_frame(const Position& p_pos) {
+FrameInfo Renderer::prepare_frame(const Position& p_pos, const bool moved) {
+    if (moved) {
+        m_drawable_meshes.clear();
+        std::array<std::array<int,8>,8> board = p_pos.get_board();
+        float distance = 0.05788809061050415;
+        glm::vec3 start_position = m_reference_mesh_load_info.start_position;
+        for (int row = 0; row < board.size(); row++) {
+            for (int col=0; col < board[row].size(); col++) {
+                if (board[row][col] == NA) {
+                    continue;
+                }
+                for (MeshNode& node : m_reference_mesh_load_info.mesh_nodes) {
+                    if (node.chess_piece == board[row][col]) {
+                        glm::vec3 pos = node.get_position();
+                        pos.y = start_position.y;
+                        pos.x = start_position.x - distance * col;
+                        pos.z = start_position.z - distance * row;
+                        node.set_position(pos);
+                        m_drawable_meshes.push_back(node);
+                    }
+                }
+            }
+        }
+        for (MeshNode& node : m_reference_mesh_load_info.mesh_nodes) {
+            if (node.id == "board") {
+                m_drawable_meshes.push_back(node);
+            }
+        }
+        for (int i=0; i < m_render_pipelines.size(); ++i) {
+            RenderPipeline& pipeline = m_render_pipelines[i];
+            pipeline.mesh_node_indexes.clear();
+            for (int j=0; j < m_drawable_meshes.size(); j++) {
+                const MeshNode& node = m_drawable_meshes[j];
+                if (pipeline.id == node.material_id) {
+                    pipeline.mesh_node_indexes.push_back(j);
+                }
+            }
+        }
+    }
     if (!m_initialized) {
         return {};
     }
@@ -609,42 +622,33 @@ FrameInfo Renderer::prepare_frame(const Position& p_pos) {
 
     renderPassDesc.nextInChain = nullptr;
 
+    uint32_t model_buffer_stride = rd_utils::ceil_to_next_multiple(sizeof(glm::mat4x4), m_storage_alignment);
+
     // Create a render pass. We end it immediately because we use its built-in
     // mechanism for clearing the screen when it begins (see descriptor).
     WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
-    for (RenderPipeline& pipeline : m_render_pipelines) {
+    for (const RenderPipeline& pipeline : m_render_pipelines) {
         if (m_chess_camera_bind_group && m_chess_model_bind_group && m_global_vertex_buffer && m_global_index_buffer) {
             wgpuRenderPassEncoderSetPipeline(renderPass, pipeline.pipeline);
             wgpuRenderPassEncoderSetBindGroup(renderPass, 0, m_chess_camera_bind_group, 0, nullptr);
-            for (int mesh_index: pipeline.mesh_node_indexes) {
-                MeshNode& node = m_mesh_nodes[mesh_index];
-                std::string id;
-                std::string color;
-                rd_utils::parse_string(node.id, &id, &color);
-                if (id.length() == 0) {
-                    id = node.id;
-                }
-                if (id == "knight") {
-                    id += "_" + color;
-                }
+            for (const int& mesh_index: pipeline.mesh_node_indexes) {
+                MeshNode& node = m_drawable_meshes[mesh_index];
+                uint32_t offset = model_buffer_stride * mesh_index;
                 if (node.get_is_dirty()) {
-                    uint32_t offset = m_model_matrix_offsets.at(node.id);
                     wgpuQueueWriteBuffer(m_graphics_queue, m_model_matrix_buffer, offset, &node.transform_matrix,sizeof(glm::mat4x4));
                     node.reset_dirt();
                 }
-                uint32_t storage_offset = m_model_matrix_offsets.at(node.id);
-                wgpuRenderPassEncoderSetBindGroup(renderPass, 1, m_chess_model_bind_group, 1, &storage_offset);
+                wgpuRenderPassEncoderSetBindGroup(renderPass, 1, m_chess_model_bind_group, 1, &offset);
                 wgpuRenderPassEncoderSetBindGroup(renderPass, 2, pipeline.material_group, 0, nullptr);
-                size_t vertex_offset = m_vertex_offsets.at(id);
+                size_t vertex_offset = m_vertex_offsets.at(node.id);
                 wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, m_global_vertex_buffer, vertex_offset, node.verticies.size() * sizeof(Vertex));
                 if (node.indices.size() > 0) {
-                    size_t index_offset = m_index_offsets.at(id);
+                    size_t index_offset = m_index_offsets.at(node.id);
                     wgpuRenderPassEncoderSetIndexBuffer(renderPass, m_global_index_buffer, WGPUIndexFormat_Uint32, index_offset, node.indices.size() * sizeof(uint32_t));
                     wgpuRenderPassEncoderDrawIndexed(renderPass, node.indices.size(), 1, 0, 0, 0);
                 } else {
                     wgpuRenderPassEncoderDraw(renderPass, node.verticies.size(), 1, 0, 0);
                 }
-
             }
         }
     }
@@ -660,74 +664,7 @@ FrameInfo Renderer::prepare_frame(const Position& p_pos) {
     return frame_info;
 }
 
-void Renderer::render_board(FrameInfo& p_info, const Move& p_move) {
-    if (!(p_move.get_start_pos()[0] == -1 || p_move.get_start_pos()[1] == -1) && !(p_move.get_end_pos()[0] == -1 || p_move.get_end_pos()[1] == -1)) {
-        float distance = 0.05788809061050415;
-        float origin_x = 0.20260828733444214;
-        float origin_z = 0.2018999457359314;
-        float tolerance = 0.001;
-        // if square is not empty, delete mesh node.
-        bool chess_piece_deleted = false;
-        for (int i = 0; i < m_mesh_nodes.size(); ++i) {
-            const MeshNode& node = m_mesh_nodes[i];
-            if (node.id == "board") {
-                continue;
-            }
-            glm::vec3 pos = node.get_position();
-            float row = origin_z - distance * p_move.get_end_pos()[0];
-            float col = origin_x -  distance * p_move.get_end_pos()[1];
-            float z_distance = std::abs(pos.z - row);
-            float x_distance = std::abs(pos.x - col);
-            if (z_distance < tolerance && x_distance < tolerance) {
-                bool found = false;
-                for (RenderPipeline& pipeline : m_render_pipelines) {
-                    if (found) {
-                        break;
-                    }
-                    for (int j = 0; j < pipeline.mesh_node_indexes.size(); j++) {
-                        if (pipeline.mesh_node_indexes[j] == i) {
-                            pipeline.mesh_node_indexes.erase(pipeline.mesh_node_indexes.begin() + j);
-                            chess_piece_deleted = true;
-                            m_mesh_nodes.erase(m_mesh_nodes.begin() + i);
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-                if (found) {
-                    break;
-                }
-            }
-        }
-        if (chess_piece_deleted) {
-            for (RenderPipeline& pipeline : m_render_pipelines) {
-                pipeline.mesh_node_indexes.clear();
-            }
-            for (int i = 0; i < m_mesh_nodes.size(); ++i) {
-                for (RenderPipeline& pipeline : m_render_pipelines) {
-                    if (m_mesh_nodes[i].material_id == pipeline.id) {
-                        pipeline.mesh_node_indexes.push_back(i);
-                    }
-                }
-            }
-        }
-        // update moving chess piece's position
-        for (MeshNode& node : m_mesh_nodes) {
-            if (node.id == "board") {
-                continue;
-            }
-            glm::vec3 pos = node.get_position();
-            float row = origin_z - distance * p_move.get_start_pos()[0];
-            float col = origin_x - distance * p_move.get_start_pos()[1];
-            float z_distance = std::abs(pos.z - row);
-            float x_distance = std::abs(pos.x - col);
-            if (z_distance < tolerance && x_distance < tolerance) {
-                pos.x = pos.x - distance *  (p_move.get_end_pos()[1] - p_move.get_start_pos()[1]);
-                pos.z = pos.z - distance * (p_move.get_end_pos()[0] - p_move.get_start_pos()[0]);
-                node.set_position(pos);
-            }
-        }
-    }
+void Renderer::render_board(FrameInfo& p_info) {
     if (!p_info.render_pass || !p_info.encoder || !p_info.next_texture) {
         std::cout << "FrameInfo is incomplete" << std::endl;
         return;

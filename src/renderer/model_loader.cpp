@@ -7,6 +7,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include "gtx/quaternion.hpp"
 #include "chess/chess.h"
+#include <unordered_map>
 
 void MeshNode::set_position(const glm::vec3 position) {
     if (m_position != position) {
@@ -86,13 +87,14 @@ uint32_t bit_width(uint32_t m) {
 
 
 
-std::pair<std::vector<Material>,std::vector<MeshNode>> load_gltf(const std::string& file, WGPUDevice& p_device) {
+bool load_gltf(const std::string& file, WGPUDevice& p_device, LoaderInfo& p_out_loader_info) {
     tinygltf::TinyGLTF loader;
     std::string err;
     std::string warn;
     tinygltf::Model model;
     std::vector<MeshNode> out_nodes;
     std::vector<Material> out_materials;
+    std::unordered_map<std::string, int> unique_name = {};
     bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, file);
 
     if (!warn.empty()) {
@@ -101,20 +103,31 @@ std::pair<std::vector<Material>,std::vector<MeshNode>> load_gltf(const std::stri
 
     if (!err.empty()) {
         std::cout <<"Error: " << err.c_str() <<std::endl;
-        return std::make_pair(out_materials, out_nodes);;
+        return false;
     }
 
     if (!ret) {
         std::cout << "Failed to parse gltf" <<std::endl;
-        return std::make_pair(out_materials, out_nodes);
+        return false;
     }
 
     for (tinygltf::Node node : model.nodes) {
+        if (node.name == "start_position") {
+            if (node.translation.size() > 0) {
+                p_out_loader_info.start_position = glm::make_vec3(node.translation.data());
+            }
+            continue;
+        }
         if (node.mesh != -1) {
             MeshNode mesh_node;
-            mesh_node.id = node.name;
             std::string piece_name, color;
             rd_utils::parse_string(node.name, &piece_name,&color);
+            if (piece_name.length() > 0) {
+                mesh_node.id = piece_name;
+            } else {
+                mesh_node.id = node.name;
+                mesh_node.chess_piece = NA;
+            }
             if (piece_name == "rook") {
                 mesh_node.chess_piece = color == "black" ? bR : wR;
             } else if (piece_name == "pawn") {
@@ -123,6 +136,7 @@ std::pair<std::vector<Material>,std::vector<MeshNode>> load_gltf(const std::stri
                 mesh_node.chess_piece = color == "black" ? bB : wB;
             } else if (piece_name == "knight") {
                 mesh_node.chess_piece = color == "black" ? bN : wN;
+                mesh_node.id = piece_name + "_" + color;
             } else if (piece_name == "queen") {
                 mesh_node.chess_piece = color == "black" ? bQ : wQ;
             } else if (piece_name == "king") {
@@ -276,7 +290,9 @@ std::pair<std::vector<Material>,std::vector<MeshNode>> load_gltf(const std::stri
             out_materials.push_back(out_mat);
         }
     }
-    return std::make_pair(out_materials, out_nodes);
+    p_out_loader_info.mesh_nodes = out_nodes;
+    p_out_loader_info.materials = out_materials;
+    return true;
 }
 
 }

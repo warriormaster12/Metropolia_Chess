@@ -70,8 +70,8 @@ class Renderer {
 public:
     Renderer(int width, int height);
     bool is_active() const;
-    FrameInfo prepare_frame(const Position& p_pos);
-    void render_board(FrameInfo& p_info, const Move& p_move);
+    FrameInfo prepare_frame(const Position& p_pos, const bool moved);
+    void render_board(FrameInfo& p_info);
     // only called at the end of the application
     void destroy();
 private:
@@ -81,23 +81,22 @@ private:
     bool m_initialized = false;
     bool m_gui_enabled = false;
     GLFWwindow* m_window = nullptr;
-    WindowSurface m_surface;
-    WGPUInstance m_instance;
-    WGPUAdapter m_adapter;
-    WGPUDevice m_device;
-    WGPUQueue m_graphics_queue;
-    WGPUBindGroup m_chess_camera_bind_group;
-    WGPUBindGroup m_chess_model_bind_group;
-    std::unordered_map<std::string, uint32_t> m_model_matrix_offsets;
-    std::vector<RenderPipeline> m_render_pipelines;
-    std::unordered_map<std::string, size_t> m_vertex_offsets;
-    std::unordered_map<std::string, size_t> m_index_offsets;
-    std::vector<MeshNode> m_mesh_nodes;
-    WGPUBuffer m_global_vertex_buffer;
-    WGPUBuffer m_global_index_buffer;
-    WGPUBuffer m_model_matrix_buffer;
-    WGPUSampler m_global_sampler;
-    Camera m_camera;
-
+    WindowSurface m_surface = {};
+    WGPUInstance m_instance = nullptr;
+    WGPUAdapter m_adapter = nullptr;
+    WGPUDevice m_device = nullptr;
+    WGPUQueue m_graphics_queue = nullptr;
+    WGPUBindGroup m_chess_camera_bind_group = nullptr;
+    WGPUBindGroup m_chess_model_bind_group = nullptr;
+    std::unordered_map<std::string, size_t> m_vertex_offsets = {};
+    std::unordered_map<std::string, size_t> m_index_offsets = {};
+    LoaderInfo m_reference_mesh_load_info; // starting state
+    std::vector<MeshNode> m_drawable_meshes = {};
+    std::vector<RenderPipeline> m_render_pipelines = {};
+    WGPUBuffer m_global_vertex_buffer = nullptr;
+    WGPUBuffer m_global_index_buffer = nullptr;
+    WGPUBuffer m_model_matrix_buffer = nullptr;
+    WGPUSampler m_global_sampler = nullptr;
+    Camera m_camera = {};
     uint32_t m_storage_alignment = 0;
 };

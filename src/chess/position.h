@@ -21,6 +21,7 @@ public:
   void move(const Move& p_move);
   void can_promote(const Move& p_move);
   void render_board();
+  std::array<std::array<int, 8>, 8> get_board() const { return m_board;}
   void render_legal_moves(const vector<Move>& p_moves);
   std::vector<Move> get_all_raw_moves(int player) const;
   void get_chess_piece(int chess_piece, int& row, int& col) const;
@@ -56,7 +57,7 @@ private:
   // [7][0] : left lower corner ("a1")
   // [7][7] : right lower corner ("h1")
   //
-  int m_board[8][8] = {
+  std::array<std::array<int, 8>, 8> m_board = {{
     {bR, bN, bB, bQ, bK, bB, bN, bR},
     {bP, bP, bP, bP, bP, bP, bP, bP}, 
     {NA, NA, NA, NA, NA, NA, NA, NA},
@@ -65,7 +66,7 @@ private:
     {NA, NA, NA, NA, NA, NA, NA, NA},
     {wP, wP, wP, wP, wP, wP, wP, wP},
     {wR, wN, wB, wQ, wK, wB, wN, wR}, 
-  };
+  }};
 
   int m_movingturn = WHITE;
 

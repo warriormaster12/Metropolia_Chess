@@ -2,12 +2,13 @@
 #include "chess/move.h"
 #include "renderer/renderer.h"
 #include <imgui.h>
+#include <future>
 
 const int MAX_HISTORY_SIZE = 10;
 vector<Position> history;
 
 bool blackAI = false;
-bool whiteAI = true;
+bool whiteAI = false;
 
 void update_history(const Position p_position) {
   if (history.size() + 1 > MAX_HISTORY_SIZE) {
@@ -15,6 +16,17 @@ void update_history(const Position p_position) {
   }
   history.push_back(p_position);
 }
+
+// This helper function could eventually be moved to some better place
+template<typename T>
+bool is_ready(std::future<T> const& f)
+{ 
+  return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready; 
+}
+
+std::future<MinmaxValue> minmax_result;
+
+bool moved = true;
 
 int main() {
   bool undo_lastround = false;
@@ -28,24 +40,31 @@ int main() {
   position.render_board();
   char coords[5] = "";
   while (renderer.is_active() && moves.size() > 0) {
-    FrameInfo info = renderer.prepare_frame(position);
+    FrameInfo info = renderer.prepare_frame(position, moved);
+    if (moved) {
+      moved = false;
+    }
     ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(640, 480));
     ImGui::Begin("Chess");
     ImGui::Text(position.get_moving_player() == WHITE ? "White's turn" : "Black's turn");
     //ImGui::SetKeyboardFocusHere(); // keeps the cursor in focus after hitting enter
     
-    Move player_move = Move({-1,-1}, {-1, -1});
     if (position.get_moving_player() == BLACK && blackAI || position.get_moving_player() == WHITE && whiteAI) {
       update_history(position);
       MinmaxValue alpha = MinmaxValue(numeric_limits<float>::lowest(), Move({ 0,0 }, { 0,0 }));
       MinmaxValue beta = MinmaxValue(numeric_limits<float>::max(), Move({ 0,0 }, { 0,0 }));
-      const Move move = position.minmax_alphabeta(3, alpha, beta).move;
-      player_move = move;
-      position.move(move);
-      position.can_promote(move);
-      moves.clear();
-      moves = position.generate_legal_moves();
-      position.render_board();
+      if (!minmax_result.valid()) {
+        minmax_result = std::async(&Position::minmax_alphabeta, &position, 3, alpha, beta);
+      } else if (is_ready(minmax_result)) {
+        Move move = minmax_result.get().move;
+        position.move(move);
+        position.can_promote(move);
+        moves.clear();
+        moves = position.generate_legal_moves();
+        position.render_board();
+        moved = true;
+      }
+      
     } else {
       ImGui::InputText(
         "where to move", 
@@ -75,15 +94,16 @@ int main() {
           }
         }
         if (valid_coords){
-          player_move = Move(coords);
+          Move move = Move(coords);
           update_history(position);
-          position.move(player_move);
-          position.can_promote(player_move);
+          position.move(move);
+          position.can_promote(move);
           moves.clear();
           moves = position.generate_legal_moves();
           position.render_legal_moves(moves);
           position.render_board();
           memset(coords, 0, 5*sizeof(*coords));
+          moved = true;
         }
       }
       if (ImGui::Button("Undo Move") && ((history.size() > 1 && !whiteAI) || history.size() > 2)) {
@@ -106,7 +126,7 @@ int main() {
       }
     }
     ImGui::End();
-    renderer.render_board(info, player_move);
+    renderer.render_board(info);
   }
   renderer.destroy();
   return 0;
