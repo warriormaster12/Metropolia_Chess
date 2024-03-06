@@ -105,20 +105,20 @@ vector<Move> Position::generate_legal_moves() const {
     return legal_moves;
 }
 
-float Position::score_end_result() const {
+float Position::score_end_result(const int p_depth) const {
     if (m_movingturn == WHITE) {
         int row, col;
-        get_chess_piece(m_movingturn, row, col);
+        get_chess_piece(wK, row, col);
 
         if (is_square_threatened(row, col, BLACK)) {
-            return -100000;
+            return -100000 - p_depth;
         }
     } else {
         int row, col;
-        get_chess_piece(m_movingturn, row, col);
+        get_chess_piece(bK, row, col);
 
         if (is_square_threatened(row, col, WHITE)) {
-            return 100000;
+            return 100000 + p_depth;
         }
     }
     return 0;
@@ -155,7 +155,7 @@ MinmaxValue Position::minmax(int depth) {
     vector<Move> legal_moves = this->generate_legal_moves();
 
     if (legal_moves.size() == 0) {
-        return MinmaxValue(this->score_end_result(), Move());
+        return MinmaxValue(this->score_end_result(depth), Move());
     }
 
     if (depth == 0) {
@@ -182,9 +182,8 @@ MinmaxValue Position::minmax(int depth) {
 
 MinmaxValue Position::minmax_alphabeta(int depth, MinmaxValue alpha, MinmaxValue beta) {
     vector<Move> legal_moves = this->generate_legal_moves();
-
     if (legal_moves.size() == 0) {
-        return MinmaxValue(this->score_end_result(), Move());
+        return MinmaxValue(this->score_end_result(depth), Move());
     }
     if (depth == 0) {
         float value = this->evaluate();

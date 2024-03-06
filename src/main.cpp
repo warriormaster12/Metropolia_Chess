@@ -3,9 +3,25 @@
 #include "renderer/renderer.h"
 #include <imgui.h>
 
+const int MAX_HISTORY_SIZE = 10;
+vector<Position> history;
+
+bool blackAI = false;
+bool whiteAI = true;
+
+void update_history(const Position p_position) {
+  if (history.size() + 1 > MAX_HISTORY_SIZE) {
+      history.erase(history.begin());
+  }
+  history.push_back(p_position);
+}
+
 int main() {
+  bool undo_lastround = false;
+
   Renderer renderer = Renderer(1280, 720);
   Position position;
+  
   vector<Move> moves;
   moves = position.generate_legal_moves();
   position.render_legal_moves(moves);
@@ -16,39 +32,78 @@ int main() {
     ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(640, 480));
     ImGui::Begin("Chess");
     ImGui::Text(position.get_moving_player() == WHITE ? "White's turn" : "Black's turn");
-    ImGui::SetKeyboardFocusHere(); // keeps the cursor in focus after hitting enter
-    ImGui::InputText(
-      "where to move", 
-      coords, 
-      5, 
-      ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EscapeClearsAll | ImGuiInputTextFlags_AlwaysOverwrite
-    );
-    size_t char_count = strlen(coords);
+    //ImGui::SetKeyboardFocusHere(); // keeps the cursor in focus after hitting enter
+    
     Move player_move = Move({-1,-1}, {-1, -1});
-    if (char_count == 2) {
-      
-    }
-    if (char_count == 4 && ImGui::IsKeyPressed(ImGuiKey_Enter)) {
-      bool valid_coords = false;
-      for (Move& move : moves) {
-        if (move.get_coords() == coords) {
-          valid_coords = true; 
-          break;
+    if (position.get_moving_player() == BLACK && blackAI || position.get_moving_player() == WHITE && whiteAI) {
+      update_history(position);
+      MinmaxValue alpha = MinmaxValue(numeric_limits<float>::lowest(), Move({ 0,0 }, { 0,0 }));
+      MinmaxValue beta = MinmaxValue(numeric_limits<float>::max(), Move({ 0,0 }, { 0,0 }));
+      const Move move = position.minmax_alphabeta(3, alpha, beta).move;
+      player_move = move;
+      position.move(move);
+      position.can_promote(move);
+      moves.clear();
+      moves = position.generate_legal_moves();
+      position.render_board();
+    } else {
+      ImGui::InputText(
+        "where to move", 
+        coords, 
+        5, 
+        ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EscapeClearsAll | ImGuiInputTextFlags_AlwaysOverwrite
+      );
+      size_t char_count = strlen(coords);
+      // if (!undo_lastround) {
+      //     if (history.size() + 1 > MAX_HISTORY_SIZE) {
+      //         history.erase(history.begin());
+      //     }
+      //     history.push_back(position);
+      // }
+      // else {
+      //     undo_lastround = false;
+      // }
+      //     if (char_count == 2) {
+        
+      // }
+      if (char_count == 4 && ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+        bool valid_coords = false;
+        for (Move& move : moves) {
+          if (move.get_coords() == coords) {
+            valid_coords = true; 
+            break;
+          }
+        }
+        if (valid_coords){
+          player_move = Move(coords);
+          update_history(position);
+          position.move(player_move);
+          position.can_promote(player_move);
+          moves.clear();
+          moves = position.generate_legal_moves();
+          position.render_legal_moves(moves);
+          position.render_board();
+          memset(coords, 0, 5*sizeof(*coords));
         }
       }
-      if (valid_coords){
-        player_move = Move(coords);
-        position.move(player_move);
-        position.can_promote(player_move);
-        moves.clear();
-        moves = position.generate_legal_moves();
-        position.render_legal_moves(moves);
-        position.render_board();
-        memset(coords, 0, 5*sizeof(*coords));
+      if (ImGui::Button("Undo Move") && ((history.size() > 1 && !whiteAI) || history.size() > 2)) {
+        // if pressed do undo
+          if (blackAI || whiteAI) {
+              //undo two steps instead of one to get to the last move made by the player (no point in undoing only what the AI does)
+              position = history[history.size() - 3];
+              history.pop_back();
+          }
+          else {
+              //undo one step
+              position = history[history.size() - 2];
+          }
+          //nää alla olevat jutut oli perässä viime historia koodin kaa, en oo varma miten tän uuden kans tulis toimii
+          moves.clear();
+          moves = position.generate_legal_moves();
+          position.render_board();
+          history.pop_back();
+          undo_lastround = true;
       }
-    }
-    if (ImGui::Button("Undo Move")) {
-      // if pressed do undo
     }
     ImGui::End();
     renderer.render_board(info, player_move);

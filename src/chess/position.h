@@ -35,7 +35,7 @@ public:
   vector<Move> generate_legal_moves() const;
   int get_moving_player() const {return m_movingturn;}
 
-  float score_end_result() const; 
+  float score_end_result(const int p_depth) const; 
 
   float evaluate() const;
 
