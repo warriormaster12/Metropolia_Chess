@@ -113,7 +113,7 @@ void Camera::update(int p_width, int p_height, WGPUQueue &p_queue, const Positio
     float aspect_ratio = (float) p_width / (float) p_height;
     if (m_last_aspect_ratio == 0.0 || m_last_aspect_ratio != aspect_ratio || m_last_turn != p_pos.get_moving_player()) {
         glm::mat4x4 projection = glm::perspective(glm::radians(fov), aspect_ratio, zNear, zFar);
-        glm::mat4x4 view = glm::lookAt(glm::vec3(0.0f, 0.5f, p_pos.get_moving_player() == WHITE ? -0.5f : 0.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4x4 view = glm::lookAt(glm::vec3(0.0f, 0.4f, p_pos.get_moving_player() == WHITE ? -0.4f : 0.4f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         glm::mat4x4 proj_view = projection * view;
         wgpuQueueWriteBuffer(p_queue, buffer, 0.0, &proj_view, sizeof(glm::mat4x4));
         m_last_aspect_ratio = aspect_ratio;
