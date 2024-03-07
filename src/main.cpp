@@ -7,7 +7,7 @@
 const int MAX_HISTORY_SIZE = 10;
 vector<Position> history;
 
-bool blackAI = false;
+bool blackAI = true;
 bool whiteAI = false;
 
 void update_history(const Position p_position) {

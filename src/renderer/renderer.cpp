@@ -279,11 +279,13 @@ void Renderer::load_resources() {
                 const MeshNode& node = m_mesh_nodes[i];
                 if (!m_vertex_offsets.contains(node.id)) {
                     m_vertex_offsets[node.id] = total_vertex_buffer_size;
-                    total_vertex_buffer_size += node.verticies.size() * sizeof(Vertex);
+                    // this does not feel right
+                    total_vertex_buffer_size += (node.verticies.size() + 1) * sizeof(Vertex);
                 }
                 if (!m_index_offsets.contains(node.id)) {
                     m_index_offsets[node.id] = total_index_buffer_size;
-                    total_index_buffer_size += node.indices.size() * sizeof(uint32_t);
+                    // this does not feel right either
+                    total_index_buffer_size += (node.indices.size() + 1) * sizeof(uint32_t);
                 }
             }
             WGPUBufferDescriptor vertex_buffer_description = {};
@@ -304,8 +306,8 @@ void Renderer::load_resources() {
 
             for (int i = 0; i < m_mesh_nodes.size(); ++i) {
                 const MeshNode& node = m_mesh_nodes[i];
-                wgpuQueueWriteBuffer(m_graphics_queue, m_global_vertex_buffer, m_vertex_offsets.at(node.id), node.verticies.data(), sizeof(Vertex) * node.verticies.size());
-                wgpuQueueWriteBuffer(m_graphics_queue, m_global_index_buffer, m_index_offsets.at(node.id), node.indices.data(), sizeof(uint32_t) * node.indices.size());
+                wgpuQueueWriteBuffer(m_graphics_queue, m_global_vertex_buffer, m_vertex_offsets.at(node.id), node.verticies.data(), sizeof(Vertex) * (node.verticies.size() + 1));
+                wgpuQueueWriteBuffer(m_graphics_queue, m_global_index_buffer, m_index_offsets.at(node.id), node.indices.data(), sizeof(uint32_t) * (node.indices.size() + 1));
             }
         }
 
