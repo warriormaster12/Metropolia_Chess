@@ -8,7 +8,7 @@ const int MAX_HISTORY_SIZE = 10;
 vector<Position> history;
 
 bool blackAI = true;
-bool whiteAI = false;
+bool whiteAI = true;
 
 void update_history(const Position p_position) {
   if (history.size() + 1 > MAX_HISTORY_SIZE) {
@@ -127,6 +127,9 @@ int main() {
     }
     ImGui::End();
     renderer.render_board(info);
+  }
+  if (!is_ready(minmax_result)) {
+    minmax_result.wait();
   }
   renderer.destroy();
   return 0;
