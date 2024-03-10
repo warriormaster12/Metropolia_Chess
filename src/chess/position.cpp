@@ -212,6 +212,9 @@ MinmaxValue Position::minmax_alphabeta(int depth, MinmaxValue alpha, MinmaxValue
         for (Move& move : legal_moves) {
             Position new_pos = *this;
             new_pos.move(move);
+            if (new_pos.can_promote(move)) {
+                new_pos.promote(move.get_end_pos(), move.get_promotable());
+            }
             new_pos.end_turn();
             MinmaxValue current_move = new_pos.minmax_alphabeta(depth - 1, alpha, beta);
             if (current_move.value > best_value) {
@@ -232,6 +235,9 @@ MinmaxValue Position::minmax_alphabeta(int depth, MinmaxValue alpha, MinmaxValue
         for (Move& move : legal_moves) {
             Position new_pos = *this;
             new_pos.move(move);
+            if (new_pos.can_promote(move)) {
+                new_pos.promote(move.get_end_pos(), move.get_promotable());
+            }
             new_pos.end_turn();
             MinmaxValue current_move = new_pos.minmax_alphabeta(depth - 1, alpha, beta);
             if (current_move.value < best_value) {

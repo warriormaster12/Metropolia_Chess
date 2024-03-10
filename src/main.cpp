@@ -37,7 +37,7 @@ int main() {
     Position position;
 
     vector<Move> moves;
-    moves = position.generate_legal_moves(true);
+    moves = position.generate_legal_moves(whiteAI);
     position.render_legal_moves(moves);
     position.render_board();
     char coords[5] = "";
