@@ -317,6 +317,9 @@ void Position::move(const Move& p_move) {
     }
 
     m_board[p_move.get_end_pos()[0]][p_move.get_end_pos()[1]] = chess_piece;
+}
+
+void Position::end_turn() {
     if (m_movingturn == WHITE) {
         m_movingturn = BLACK;
     }
@@ -324,10 +327,12 @@ void Position::move(const Move& p_move) {
         m_movingturn = WHITE;
     }
 }
-void Position::can_promote(const Move& p_move) {
+
+bool Position::can_promote(const Move& p_move) {
     int chess_piece = m_board[p_move.get_end_pos()[0]][p_move.get_end_pos()[1]];
     int player = get_chess_piece_color(chess_piece);
-    if (is_promotable(chess_piece, p_move.get_end_pos()[0])) {
+    return is_promotable(chess_piece, p_move.get_end_pos()[0]);
+    {
         bool promoted = false;
         while (!promoted) {
             std::cout <<"Promote your pawn: \n";
@@ -369,6 +374,11 @@ void Position::can_promote(const Move& p_move) {
         }
     }
 }
+
+void Position::promote(int *end_pos, int chess_piece) {
+    m_board[end_pos[0]][end_pos[1]] = chess_piece;
+}
+
 bool Position::check_collision(int row_now, int col_now, int row, int col, int player,vector<Move>& out) const {
     int chess_piece = m_board[row][col];
     bool is_pawn = chess_piece == wP || chess_piece == bP;

@@ -26,9 +26,11 @@ bool is_ready(std::future<T> const& f)
 
 std::future<MinmaxValue> minmax_result;
 
-bool moved = true;
+bool moved = false;
 
 bool begin_game = false;
+
+int promotable_coords[2] = {-1, -1};
 
 int main() {
     Renderer renderer = Renderer(1280, 720);
@@ -47,19 +49,69 @@ int main() {
             ImGui::Text("Choose one option");
             if (ImGui::Button("Play against another human player")) {
                 begin_game = true;
+                moved = true;
             }
             if (ImGui::Button("Play as WHITE against BLACK AI")) {
                 blackAI = true;
                 begin_game = true;
+                moved = true;
             }
             if (ImGui::Button("Play as BLACK against WHITE AI playing as WHITE")) {
                 whiteAI = true;
                 begin_game = true;
+                moved = true;
             }
             if (ImGui::Button("Put two AI players against each other")) {
                 whiteAI = true;
                 blackAI = true;
                 begin_game = true;
+                moved = true;
+            }
+        } else if (promotable_coords[0] != -1 && promotable_coords[1] != -1) {
+            ImGui::Text("Promote your pawn");
+            if (ImGui::Button("Queen")) {
+                position.promote(promotable_coords, position.get_moving_player() == WHITE ? wQ : bQ);
+                promotable_coords[0] = -1;
+                promotable_coords[1] = -1;
+                position.end_turn();
+                moves.clear();
+                moves = position.generate_legal_moves();
+                position.render_legal_moves(moves);
+                position.render_board();
+            }
+
+            if (ImGui::Button("Rook")) {
+                position.promote(promotable_coords, position.get_moving_player() == WHITE ? wR : bR);
+                promotable_coords[0] = -1;
+                promotable_coords[1] = -1;
+                position.end_turn();
+                moves.clear();
+                moves = position.generate_legal_moves();
+                position.render_legal_moves(moves);
+                position.render_board();
+            }
+
+            if (ImGui::Button("Bishop")) {
+                position.promote(promotable_coords, position.get_moving_player() == WHITE ? wB : bB);
+                promotable_coords[0] = -1;
+                promotable_coords[1] = -1;
+                position.end_turn();
+                moves.clear();
+                moves = position.generate_legal_moves();
+                position.render_legal_moves(moves);
+                position.render_board();
+            }
+
+            if (ImGui::Button("Knight")) {
+                position.promote(promotable_coords, position.get_moving_player() == WHITE ? wN : bN);
+                promotable_coords[0] = -1;
+                promotable_coords[1] = -1;
+                position.end_turn();
+                moves.clear();
+                moves = position.generate_legal_moves();
+                position.render_legal_moves(moves);
+                position.render_board();
+                moved = true;
             }
         }
         else {
@@ -79,10 +131,14 @@ int main() {
                 else if (is_ready(minmax_result)) {
                     Move move = minmax_result.get().move;
                     position.move(move);
-                    position.can_promote(move);
+                    if (position.can_promote(move)) {
+                        promotable_coords[0] = move.get_end_pos()[0];
+                        promotable_coords[1] = move.get_end_pos()[1];
+                    }
                     moves.clear();
                     moves = position.generate_legal_moves();
                     position.render_board();
+                    position.end_turn();
                     moved = true;
                 }
 
@@ -119,10 +175,16 @@ int main() {
                         Move move = Move(coords);
                         update_history(position);
                         position.move(move);
-                        position.can_promote(move);
-                        moves.clear();
-                        moves = position.generate_legal_moves();
-                        position.render_legal_moves(moves);
+                        if (position.can_promote(move)) {
+                            promotable_coords[0] = move.get_end_pos()[0];
+                            promotable_coords[1] = move.get_end_pos()[1];
+                        } else {
+                            position.end_turn();
+                            moves.clear();
+                            moves = position.generate_legal_moves();
+                            position.render_legal_moves(moves);
+                        }
+
                         position.render_board();
                         memset(coords, 0, 5 * sizeof(*coords));
                         moved = true;

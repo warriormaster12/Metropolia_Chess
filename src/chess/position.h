@@ -19,7 +19,9 @@ class Position {
 public: 
   void clear();
   void move(const Move& p_move);
-  void can_promote(const Move& p_move);
+  void end_turn();
+  bool can_promote(const Move& p_move);
+  void promote(int *end_pos, int chess_piece);
   void render_board();
   std::array<std::array<int, 8>, 8> get_board() const { return m_board;}
   void render_legal_moves(const vector<Move>& p_moves);
