@@ -588,7 +588,7 @@ void Position::render_board() {
             }
             
         }
-        for (int col= 0; col < board_size + 1; col ++) {
+        for (int col= 0; col < board_size; col ++) {
             const std::string piece = chess_piece_to_string(m_board[row][col]);
             if (col == board_size) {
                 map += "|";
