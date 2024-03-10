@@ -30,7 +30,7 @@ bool moved = false;
 
 bool begin_game = false;
 
-int promotable_coords[2] = {-1, -1};
+std::array<int, 2> promotable_coords = {-1, -1};
 
 int main() {
     Renderer renderer = Renderer(1280, 720);
@@ -132,8 +132,7 @@ int main() {
                     Move move = minmax_result.get().move;
                     position.move(move);
                     if (position.can_promote(move)) {
-                        promotable_coords[0] = move.get_end_pos()[0];
-                        promotable_coords[1] = move.get_end_pos()[1];
+                        promotable_coords = move.get_end_pos();
                     } else {
                         position.end_turn();
                         moves.clear();
@@ -178,8 +177,7 @@ int main() {
                         update_history(position);
                         position.move(move);
                         if (position.can_promote(move)) {
-                            promotable_coords[0] = move.get_end_pos()[0];
-                            promotable_coords[1] = move.get_end_pos()[1];
+                            promotable_coords = move.get_end_pos();
                         } else {
                             position.end_turn();
                             moves.clear();

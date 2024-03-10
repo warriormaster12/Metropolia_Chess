@@ -1,7 +1,6 @@
 #include "position.h"
 #include <iostream>
 #include <cmath>
-#include <cctype>
 #include <limits>
 #include <map>
 
@@ -95,6 +94,7 @@ vector<Move> Position::generate_legal_moves() const {
         Position test_pos = *this;
 
         test_pos.move(raw_move);
+        test_pos.end_turn();
         int row, col;
         test_pos.get_chess_piece(king, row, col);
         if (!test_pos.is_square_threatened(row, col, opponent)) {
@@ -168,6 +168,7 @@ MinmaxValue Position::minmax(int depth) {
     for(Move &move : legal_moves) {
         Position new_pos = *this;
         new_pos.move(move);
+        new_pos.end_turn();
         MinmaxValue minmaxval = new_pos.minmax(depth -1);
         if (this->get_moving_player() == WHITE && minmaxval.value > best_value) {
             best_value = minmaxval.value;
@@ -198,6 +199,7 @@ MinmaxValue Position::minmax_alphabeta(int depth, MinmaxValue alpha, MinmaxValue
         for (Move& move : legal_moves) {
             Position new_pos = *this;
             new_pos.move(move);
+            new_pos.end_turn();
             MinmaxValue current_move = new_pos.minmax_alphabeta(depth - 1, alpha, beta);
             if (current_move.value > best_value) {
                 best_value = current_move.value;
@@ -217,6 +219,7 @@ MinmaxValue Position::minmax_alphabeta(int depth, MinmaxValue alpha, MinmaxValue
         for (Move& move : legal_moves) {
             Position new_pos = *this;
             new_pos.move(move);
+            new_pos.end_turn();
             MinmaxValue current_move = new_pos.minmax_alphabeta(depth - 1, alpha, beta);
             if (current_move.value < best_value) {
                 best_value = current_move.value;
@@ -334,7 +337,7 @@ bool Position::can_promote(const Move& p_move) {
     return is_promotable(chess_piece, p_move.get_end_pos()[0]);
 }
 
-void Position::promote(int *end_pos, int chess_piece) {
+void Position::promote(std::array<int, 2> end_pos, int chess_piece) {
     m_board[end_pos[0]][end_pos[1]] = chess_piece;
 }
 
