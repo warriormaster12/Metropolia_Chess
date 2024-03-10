@@ -36,6 +36,7 @@ public:
   vector<Move> get_pawn_raw_move(int row, int col, int player) const;
   vector<Move> get_castlings(int player) const;
   vector<Move> generate_legal_moves() const;
+  vector<Move> generate_ai_legal_moves() const;
   int get_moving_player() const {return m_movingturn;}
 
   float score_end_result(const int p_depth) const; 
@@ -59,16 +60,18 @@ private:
   // [7][0] : left lower corner ("a1")
   // [7][7] : right lower corner ("h1")
   //
-  std::array<std::array<int, 8>, 8> m_board = {{
+
+
+  std::array<std::array<int, 8>, 8> m_board = { {
     {bR, bN, bB, bQ, bK, bB, bN, bR},
-    {bP, bP, bP, bP, bP, bP, bP, bP}, 
+    {bP, wP, bP, bP, bP, bP, bP, bP},
     {NA, NA, NA, NA, NA, NA, NA, NA},
     {NA, NA, NA, NA, NA, NA, NA, NA},
     {NA, NA, NA, NA, NA, NA, NA, NA},
     {NA, NA, NA, NA, NA, NA, NA, NA},
-    {wP, wP, wP, wP, wP, wP, wP, wP},
-    {wR, wN, wB, wQ, wK, wB, wN, wR}, 
-  }};
+    {wP, bP, wP, wP, wP, wP, wP, wP},
+    {wR, wN, wB, wQ, wK, wB, wN, wR},
+  } };
 
   int m_movingturn = WHITE;
 

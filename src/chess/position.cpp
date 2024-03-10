@@ -105,6 +105,46 @@ vector<Move> Position::generate_legal_moves() const {
     return legal_moves;
 }
 
+vector<Move> Position::generate_ai_legal_moves() const {
+    int king = m_movingturn == WHITE ? wK : bK;
+    int player = m_movingturn;
+    int opponent = m_movingturn == WHITE ? BLACK : WHITE;
+    std::vector<Move> raw_moves;
+    std::vector<Move> castling_moves = get_castlings(player);
+    raw_moves = get_all_raw_moves(player);
+    raw_moves.insert(raw_moves.end(), castling_moves.begin(), castling_moves.end());
+    std::vector<Move> legal_moves;
+    std::array<int, 4> white_promotables = { wQ, wR, wB, wN };
+    std::array<int, 4> black_promotables = { bQ, bR, bB, bN };
+    for (Move& raw_move : raw_moves) {
+        Position test_pos = *this;
+
+        test_pos.move(raw_move);
+        test_pos.end_turn();
+        int row, col;
+        test_pos.get_chess_piece(king, row, col);
+        if (!test_pos.is_square_threatened(row, col, opponent)) {
+            if (test_pos.can_promote(raw_move)) {
+                for (int i = 0; i < 4; i++) {
+                    if (test_pos.get_moving_player() == WHITE) {
+                        raw_move.set_promotable(black_promotables[i]);
+                        legal_moves.push_back(raw_move);
+                    }
+                    else {
+                        raw_move.set_promotable(white_promotables[i]);
+                        legal_moves.push_back(raw_move);
+                    }
+                }
+            }
+            else {
+                legal_moves.push_back(raw_move);
+            }
+        }
+    }
+    return legal_moves;
+}
+
+
 float Position::score_end_result(const int p_depth) const {
     if (m_movingturn == WHITE) {
         int row, col;
@@ -182,7 +222,7 @@ MinmaxValue Position::minmax(int depth) {
 }
 
 MinmaxValue Position::minmax_alphabeta(int depth, MinmaxValue alpha, MinmaxValue beta) {
-    vector<Move> legal_moves = this->generate_legal_moves();
+    vector<Move> legal_moves = this->generate_ai_legal_moves();
     if (legal_moves.size() == 0) {
         return MinmaxValue(this->score_end_result(depth), Move());
     }
@@ -318,8 +358,14 @@ void Position::move(const Move& p_move) {
         m_en_passant_col[BLACK] = -1;
         m_en_passant_col[WHITE] = -1;
     }
+    
+    if (p_move.promotable_piece == NA) {
+        m_board[p_move.get_end_pos()[0]][p_move.get_end_pos()[1]] = chess_piece;
+    }
+    else {
+        m_board[p_move.get_end_pos()[0]][p_move.get_end_pos()[1]] = p_move.promotable_piece;
+    }
 
-    m_board[p_move.get_end_pos()[0]][p_move.get_end_pos()[1]] = chess_piece;
 }
 
 void Position::end_turn() {

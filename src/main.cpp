@@ -56,7 +56,7 @@ int main() {
                 begin_game = true;
                 moved = true;
             }
-            if (ImGui::Button("Play as BLACK against WHITE AI playing as WHITE")) {
+            if (ImGui::Button("Play as BLACK against WHITE AI")) {
                 whiteAI = true;
                 begin_game = true;
                 moved = true;
@@ -136,7 +136,7 @@ int main() {
                     } else {
                         position.end_turn();
                         moves.clear();
-                        moves = position.generate_legal_moves();
+                        moves = position.generate_ai_legal_moves();
                         position.render_legal_moves(moves);
                     }
                     position.render_board();
