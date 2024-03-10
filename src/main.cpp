@@ -31,8 +31,6 @@ bool moved = true;
 bool begin_game = false;
 
 int main() {
-    bool undo_lastround = false;
-
     Renderer renderer = Renderer(1280, 720);
     Position position;
 
@@ -42,10 +40,10 @@ int main() {
     position.render_board();
     char coords[5] = "";
     while (renderer.is_active() && moves.size() > 0) {
+        FrameInfo info = renderer.prepare_frame(position, begin_game && moved);
+        ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(640, 480));
+        ImGui::Begin("Chess");
         if (!begin_game) {
-            FrameInfo info = renderer.prepare_frame(position, false);
-            ImGui::Begin("Chess");
-            ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(640, 480));
             ImGui::Text("Choose one option");
             if (ImGui::Button("Play against another human player")) {
                 begin_game = true;
@@ -63,24 +61,19 @@ int main() {
                 blackAI = true;
                 begin_game = true;
             }
-            ImGui::End();
-            renderer.render_board(info);
         }
         else {
-            FrameInfo info = renderer.prepare_frame(position, moved);
             if (moved) {
                 moved = false;
             }
-            ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(640, 480));
-            ImGui::Begin("Chess");
             ImGui::Text(position.get_moving_player() == WHITE ? "White's turn" : "Black's turn");
             //ImGui::SetKeyboardFocusHere(); // keeps the cursor in focus after hitting enter
 
             if (position.get_moving_player() == BLACK && blackAI || position.get_moving_player() == WHITE && whiteAI) {
-                update_history(position);
                 MinmaxValue alpha = MinmaxValue(numeric_limits<float>::lowest(), Move({ 0,0 }, { 0,0 }));
                 MinmaxValue beta = MinmaxValue(numeric_limits<float>::max(), Move({ 0,0 }, { 0,0 }));
                 if (!minmax_result.valid()) {
+                    update_history(position);
                     minmax_result = std::async(&Position::minmax_alphabeta, &position, 3, alpha, beta);
                 }
                 else if (is_ready(minmax_result)) {
@@ -135,30 +128,29 @@ int main() {
                         moved = true;
                     }
                 }
-                if (ImGui::Button("Undo Move") && ((history.size() > 1 && !whiteAI) || history.size() > 2)) {
+                if (ImGui::Button("Undo Move") && history.size() > 0) {
                     // if pressed do undo
-                    if (blackAI || whiteAI) {
+                    if (blackAI || whiteAI && history.size() > 1) {
                         //undo two steps instead of one to get to the last move made by the player (no point in undoing only what the AI does)
-                        position = history[history.size() - 3];
+                        position = history[std::max<size_t>(history.size() - 2, 0)];
+                        history.erase(history.end() - 2, history.end());
+                    }
+                    if (!blackAI && !whiteAI) {
+                        //undo one step
+                        position = history[std::max<size_t>(history.size() - 1, 0)];
                         history.pop_back();
                     }
-                    else {
-                        //undo one step
-                        position = history[history.size() - 2];
-                    }
-                    //nää alla olevat jutut oli perässä viime historia koodin kaa, en oo varma miten tän uuden kans tulis toimii
                     moves.clear();
                     moves = position.generate_legal_moves();
                     position.render_board();
-                    history.pop_back();
-                    undo_lastround = true;
+                    moved = true;
                 }
             }
-            ImGui::End();
-            renderer.render_board(info);
         }
+        ImGui::End();
+        renderer.render_board(info);
     }
-    if (!is_ready(minmax_result)) {
+    if (minmax_result.valid() && !is_ready(minmax_result)) {
         minmax_result.wait();
     }
     renderer.destroy();
