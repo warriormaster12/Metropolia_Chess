@@ -134,11 +134,13 @@ int main() {
                     if (position.can_promote(move)) {
                         promotable_coords[0] = move.get_end_pos()[0];
                         promotable_coords[1] = move.get_end_pos()[1];
+                    } else {
+                        position.end_turn();
+                        moves.clear();
+                        moves = position.generate_legal_moves();
+                        position.render_legal_moves(moves);
                     }
-                    moves.clear();
-                    moves = position.generate_legal_moves();
                     position.render_board();
-                    position.end_turn();
                     moved = true;
                 }
 

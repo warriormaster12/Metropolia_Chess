@@ -332,47 +332,6 @@ bool Position::can_promote(const Move& p_move) {
     int chess_piece = m_board[p_move.get_end_pos()[0]][p_move.get_end_pos()[1]];
     int player = get_chess_piece_color(chess_piece);
     return is_promotable(chess_piece, p_move.get_end_pos()[0]);
-    {
-        bool promoted = false;
-        while (!promoted) {
-            std::cout <<"Promote your pawn: \n";
-            std::cout<< "1. Queen \n";
-            std::cout<< "2. Rook \n";
-            std::cout<< "3. Bishop \n";
-            std::cout<< "4. Knight \n";
-            std::string selected_character;
-            std::cout<<"Input number: ";
-            std::cin>>selected_character;
-            if (selected_character.size() == 1 && isdigit(selected_character[0])) {
-                int selected_num = stoi(selected_character);
-                if (selected_num > 0 && selected_num < 5) {
-                    switch (selected_num) {
-                        case 1: {
-                            chess_piece = player == WHITE ? wQ : bQ;
-                            break;
-                        }
-                        case 2: {
-                            chess_piece = player == WHITE ? wR : bR;
-                            break;
-                        }
-                        case 3: {
-                            chess_piece = player == WHITE ? wB : bB;
-                            break;
-                        }
-                        case 4: {
-                            chess_piece = player == WHITE ? wN : bN;
-                            break;
-                        }
-                    
-                    }
-                    m_board[p_move.get_end_pos()[0]][p_move.get_end_pos()[1]] = chess_piece;
-                    promoted = true;
-                }
-            } else {
-                std::cout<<"Invalid input"<<std::endl;
-            }
-        }
-    }
 }
 
 void Position::promote(int *end_pos, int chess_piece) {
