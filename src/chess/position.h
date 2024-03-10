@@ -35,7 +35,7 @@ public:
   vector<Move> get_king_raw_move(int row, int col, int player) const;
   vector<Move> get_pawn_raw_move(int row, int col, int player) const;
   vector<Move> get_castlings(int player) const;
-  vector<Move> generate_legal_moves() const;
+  vector<Move> generate_legal_moves(const bool ai_legal_moves = false) const;
   int get_moving_player() const {return m_movingturn;}
 
   float score_end_result(const int p_depth) const; 

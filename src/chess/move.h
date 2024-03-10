@@ -3,6 +3,7 @@
 #include <string>
 #include <cctype>
 #include <array>
+#include "chess.h"
 using namespace std;
 
 // Describes change in position.
@@ -36,8 +37,11 @@ public:
     string get_coords() const;
     std::array<int, 2> get_start_pos() const {return {m_start_pos[0], m_start_pos[1]};};
     std::array<int, 2> get_end_pos() const {return {m_end_pos[0], m_end_pos[1]};};
+    void set_promotable(int p_chess_piece) {promotable_piece = p_chess_piece;};
+    int get_promotable() const {return promotable_piece;}
 private: 
     // rows and cols
     int m_start_pos[2];
     int m_end_pos[2];
+    int promotable_piece = NA;
 };

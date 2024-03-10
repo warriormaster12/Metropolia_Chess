@@ -37,7 +37,7 @@ int main() {
     Position position;
 
     vector<Move> moves;
-    moves = position.generate_legal_moves();
+    moves = position.generate_legal_moves(true);
     position.render_legal_moves(moves);
     position.render_board();
     char coords[5] = "";
@@ -67,7 +67,7 @@ int main() {
                 begin_game = true;
                 moved = true;
             }
-        } else if (promotable_coords[0] != -1 && promotable_coords[1] != -1) {
+        } else if (promotable_coords[0] != -1 && promotable_coords[1] != -1 && (position.get_moving_player() == WHITE && !whiteAI) || (position.get_moving_player() == BLACK && !blackAI) ) {
             ImGui::Text("Promote your pawn");
             if (ImGui::Button("Queen")) {
                 position.promote(promotable_coords, position.get_moving_player() == WHITE ? wQ : bQ);
@@ -132,13 +132,12 @@ int main() {
                     Move move = minmax_result.get().move;
                     position.move(move);
                     if (position.can_promote(move)) {
-                        promotable_coords = move.get_end_pos();
-                    } else {
-                        position.end_turn();
-                        moves.clear();
-                        moves = position.generate_legal_moves();
-                        position.render_legal_moves(moves);
+                        position.promote(move.get_end_pos(), move.get_promotable());
                     }
+                    position.end_turn();
+                    moves.clear();
+                    moves = position.generate_legal_moves(true);
+                    position.render_legal_moves(moves);
                     position.render_board();
                     moved = true;
                 }

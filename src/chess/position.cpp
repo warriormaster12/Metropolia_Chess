@@ -81,7 +81,7 @@ bool Position::is_square_threatened(int row, int col, int threatening_player) co
     return false;
 }
 
-vector<Move> Position::generate_legal_moves() const {
+vector<Move> Position::generate_legal_moves(const bool ai_legal_moves) const {
     int king = m_movingturn == WHITE ? wK : bK;
     int player = m_movingturn;
     int opponent = m_movingturn == WHITE ? BLACK : WHITE;
@@ -90,16 +90,29 @@ vector<Move> Position::generate_legal_moves() const {
     raw_moves = get_all_raw_moves(player);
     raw_moves.insert(raw_moves.end(), castling_moves.begin(), castling_moves.end());
     std::vector<Move> legal_moves;
-    for(const Move& raw_move: raw_moves) {
+    std::array<int, 4> white_promotables = {wQ, wR, wB, wN};
+    std::array<int, 4> black_promotables = {bQ, bR, bB, bN};
+    for(Move& raw_move: raw_moves) {
         Position test_pos = *this;
 
         test_pos.move(raw_move);
-        test_pos.end_turn();
         int row, col;
         test_pos.get_chess_piece(king, row, col);
         if (!test_pos.is_square_threatened(row, col, opponent)) {
-            legal_moves.push_back(raw_move);
+            if (ai_legal_moves && test_pos.can_promote(raw_move)) {
+                for (int i = 0; i < 4; i++) {
+                    if (test_pos.get_moving_player() == WHITE) {
+                        raw_move.set_promotable(white_promotables[i]);
+                    } else {
+                        raw_move.set_promotable(black_promotables[i]);
+                    }
+                    legal_moves.push_back(raw_move);
+                }
+            } else {
+                legal_moves.push_back(raw_move);
+            }
         }
+        test_pos.end_turn();
     }
 
     return legal_moves;
@@ -152,7 +165,7 @@ float Position::mobility() const {
 }
 
 MinmaxValue Position::minmax(int depth) {
-    vector<Move> legal_moves = this->generate_legal_moves();
+    vector<Move> legal_moves = this->generate_legal_moves(true);
 
     if (legal_moves.size() == 0) {
         return MinmaxValue(this->score_end_result(depth), Move());
@@ -182,7 +195,7 @@ MinmaxValue Position::minmax(int depth) {
 }
 
 MinmaxValue Position::minmax_alphabeta(int depth, MinmaxValue alpha, MinmaxValue beta) {
-    vector<Move> legal_moves = this->generate_legal_moves();
+    vector<Move> legal_moves = this->generate_legal_moves(true);
     if (legal_moves.size() == 0) {
         return MinmaxValue(this->score_end_result(depth), Move());
     }
