@@ -67,7 +67,7 @@ int main() {
                 begin_game = true;
                 moved = true;
             }
-        } else if (promotable_coords[0] != -1 && promotable_coords[1] != -1 && (position.get_moving_player() == WHITE && !whiteAI) || (position.get_moving_player() == BLACK && !blackAI) ) {
+        } else if (promotable_coords[0] != -1 && promotable_coords[1] != -1 && ((position.get_moving_player() == WHITE && !whiteAI) || (position.get_moving_player() == BLACK && !blackAI)) ) {
             ImGui::Text("Promote your pawn");
             if (ImGui::Button("Queen")) {
                 position.promote(promotable_coords, position.get_moving_player() == WHITE ? wQ : bQ);
