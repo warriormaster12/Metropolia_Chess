@@ -137,13 +137,13 @@ float Position::score_end_result(const int p_depth) const {
     return 0;
 }
 float Position::evaluate() const {
-    return 1.0 * material() + 0.05 * mobility();
+    return material();
 }
 
 float Position::material() const {
     static map<int, float> piece_values = {
-        {wP, 1.0},{wK, 3.0}, {wB, 3.0}, {wR, 5.0}, {wQ, 9.0},
-        {bP, -1.0},{bK, -3.0}, {bB, -3.0}, {bR, -5.0}, {bQ, -9.0},
+        {wP, 1.0},{wN, 3.0}, {wB, 3.0}, {wR, 5.0}, {wQ, 9.0}, {wK, 90},
+        {bP, -1.0},{bN, -3.0}, {bB, -3.0}, {bR, -5.0}, {bQ, -9.0},{bK, -90},
         {NA, 0.0}
     };
 
@@ -151,7 +151,9 @@ float Position::material() const {
     for (int row = 0; row < 8; ++row) {
         for (int col = 0; col < 8; ++col) {
             int piece = m_board[row][col];
-            result += piece_values[piece];
+            float piece_value  = piece_values[piece];
+            float square_score = get_square_score({row, col}, piece);
+            result += piece_value + square_score;
         }
     }
     return result;
