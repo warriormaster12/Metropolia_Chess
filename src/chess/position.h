@@ -13,6 +13,9 @@ struct MinmaxValue {
     value = p_value;
     move = p_move;
   }
+  MinmaxValue() {
+    value = 0;
+  }
 };
 
 class Position {
@@ -48,9 +51,10 @@ public:
 
   MinmaxValue minmax(int depth);
 
-  MinmaxValue minmax_alphabeta(int depth, MinmaxValue alpha, MinmaxValue beta);
+  MinmaxValue minmax_alphabeta(int depth, MinmaxValue alpha, MinmaxValue beta, const bool threaded = false);
 
 private:
+  MinmaxValue threaded_alpha_beta(std::vector<Move> p_legal_moves, int depth, MinmaxValue alpha, MinmaxValue beta);
   vector<Move> get_directional_raw_move(std::array<int, 2> position, std::array<int, 2> direction, int player) const;
   bool check_collision(int row_now, int col_now, int row, int col,int player,vector<Move>& out) const;
   // board pieces cols and rows. Example:

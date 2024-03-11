@@ -3,7 +3,8 @@
 #include <cmath>
 #include <limits>
 #include <map>
-
+#include <future>
+#include <algorithm>
 
 void Position::clear() {
     for (int rows = 0; rows < 8; rows ++) {
@@ -196,7 +197,47 @@ MinmaxValue Position::minmax(int depth) {
     return MinmaxValue(best_value, best_move);
 }
 
-MinmaxValue Position::minmax_alphabeta(int depth, MinmaxValue alpha, MinmaxValue beta) {
+MinmaxValue Position::threaded_alpha_beta(std::vector<Move> p_legal_moves, int depth, MinmaxValue alpha, MinmaxValue beta) {
+    float best_value = this->get_moving_player() == WHITE ? numeric_limits<float>::lowest() : numeric_limits<float>::max();
+    bool maximizingPlayer = this->get_moving_player() == WHITE ? true : false;
+    Move best_move;
+    for (Move& move : p_legal_moves) {
+        Position new_pos = *this;
+        new_pos.move(move);
+        if (new_pos.can_promote(move)) {
+            new_pos.promote(move.get_end_pos(), move.get_promotable());
+        }
+        new_pos.end_turn();
+        MinmaxValue current_move = new_pos.minmax_alphabeta(depth - 1, alpha, beta, false);
+        if (maximizingPlayer) {
+            if (current_move.value > best_value) {
+                best_value = current_move.value;
+                best_move = move;
+            }
+            if (current_move.value > alpha.value) {
+                alpha.value = current_move.value;
+                alpha.move = move;
+            }
+        } else {
+            if (current_move.value < best_value) {
+                best_value = current_move.value;
+                best_move = move;
+            }
+            if (current_move.value < beta.value) {
+                beta.value = current_move.value;
+                beta.move = move;
+            }
+        }
+        if (beta.value <= alpha.value) {
+            break;
+        }
+    }
+    return MinmaxValue(best_value, best_move);
+}
+
+std::vector<std::future<MinmaxValue>> threads;
+
+MinmaxValue Position::minmax_alphabeta(int depth, MinmaxValue alpha, MinmaxValue beta, const bool threaded) {
     vector<Move> legal_moves = this->generate_legal_moves(true);
     if (legal_moves.size() == 0) {
         return MinmaxValue(this->score_end_result(depth), Move());
@@ -208,55 +249,46 @@ MinmaxValue Position::minmax_alphabeta(int depth, MinmaxValue alpha, MinmaxValue
 
     bool maximizingPlayer = this->get_moving_player() == WHITE ? true : false;
     float best_value = this->get_moving_player() == WHITE ? numeric_limits<float>::lowest() : numeric_limits<float>::max();
-    Move best_move;
+    MinmaxValue best_move;
+    if (threaded) {
+        if (threads.size() == 0) {
+            // we want n-2 due to in the main function we are using one thread already + main thread
+            unsigned int nthreads = std::thread::hardware_concurrency() - 2;
+            threads.resize(nthreads);
+        }
+        int split_size = std::floor(legal_moves.size() / threads.size());
+        std::vector<std::vector<Move>> split_moves;
+        split_moves.resize(threads.size()); 
+        int current_thread = split_size != 0 ? -1 : 0;
+        for (int i = 0; i < legal_moves.size(); ++i) {
+            if (split_size > 0) {
+                if (current_thread != threads.size() - 1 && i % split_size == 0) {
+                    current_thread += 1;
+                }
+            }
+            split_moves[current_thread].push_back(legal_moves[i]);
+        }
+        std::vector<MinmaxValue> results;
+        results.resize(threads.size());
+        for (int i = 0; i < threads.size(); i++) {
+            threads[i] = std::async(&Position::threaded_alpha_beta, this, split_moves[i], depth,alpha, beta);
+            if (threads[i].valid()) {
+                threads[i].wait();
+                results[i] = threads[i].get();
+            }
+        }
+        std::vector<float> values;
+        for (int i = 0; i < results.size(); i++) {
+            values.push_back(results[i].value);
+        }
+        std::vector<float>::iterator result = maximizingPlayer ? std::max_element(values.begin(), values.end()) : std::min_element(values.begin(), values.end());
+        int index = std::distance(values.begin(), result);
+        best_move = results[index];
+    } else {
+        best_move = threaded_alpha_beta(legal_moves, depth, alpha, beta);
+    }
 
-    if (maximizingPlayer) {
-        for (Move& move : legal_moves) {
-            Position new_pos = *this;
-            new_pos.move(move);
-            if (new_pos.can_promote(move)) {
-                new_pos.promote(move.get_end_pos(), move.get_promotable());
-            }
-            new_pos.end_turn();
-            MinmaxValue current_move = new_pos.minmax_alphabeta(depth - 1, alpha, beta);
-            if (current_move.value > best_value) {
-                best_value = current_move.value;
-                best_move = move;
-            }
-            if (current_move.value > alpha.value) {
-                alpha.value = current_move.value;
-                alpha.move = move;
-            }
-            if (beta.value <= alpha.value) {
-                break;
-            }
-        }
-        return MinmaxValue(best_value, best_move);
-    }
-    else {
-        for (Move& move : legal_moves) {
-            Position new_pos = *this;
-            new_pos.move(move);
-            if (new_pos.can_promote(move)) {
-                new_pos.promote(move.get_end_pos(), move.get_promotable());
-            }
-            new_pos.end_turn();
-            MinmaxValue current_move = new_pos.minmax_alphabeta(depth - 1, alpha, beta);
-            if (current_move.value < best_value) {
-                best_value = current_move.value;
-                best_move = move;
-            }
-            if (current_move.value < beta.value) {
-                beta.value = current_move.value;
-                beta.move = move;
-            }
-            if (beta.value <= alpha.value)
-            {
-                break;
-            }
-        }
-        return MinmaxValue(best_value, best_move);
-    }
+    return best_move;
 }
 
 

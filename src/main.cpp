@@ -126,10 +126,11 @@ int main() {
                 MinmaxValue beta = MinmaxValue(numeric_limits<float>::max(), Move({ 0,0 }, { 0,0 }));
                 if (!minmax_result.valid()) {
                     update_history(position);
-                    minmax_result = std::async(&Position::minmax_alphabeta, &position, 3, alpha, beta);
+                    minmax_result = std::async(&Position::minmax_alphabeta, &position, 4, alpha, beta, true);
                 }
                 else if (is_ready(minmax_result)) {
                     Move move = minmax_result.get().move;
+                    std::cout<< (position.get_moving_player() == WHITE ? "White " : "Black ")<<"moved from to: "<<move.get_coords()<<std::endl;
                     position.move(move);
                     if (position.can_promote(move)) {
                         position.promote(move.get_end_pos(), move.get_promotable());
@@ -173,6 +174,7 @@ int main() {
                     }
                     if (valid_coords) {
                         Move move = Move(coords);
+                        std::cout<< (position.get_moving_player() == WHITE ? "White " : "Black ")<<"moved from to: "<<move.get_coords()<<std::endl;
                         update_history(position);
                         position.move(move);
                         if (position.can_promote(move)) {
