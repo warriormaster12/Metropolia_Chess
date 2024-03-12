@@ -65,7 +65,7 @@ int main() {
     
     std::chrono::time_point<std::chrono::system_clock> ai_time_start, ai_time_end;
 
-    while (renderer.is_active() && moves.size() > 0) {
+    while (renderer.is_active()) {
         std::chrono::time_point<std::chrono::system_clock> frame_start, frame_end;
         frame_start = std::chrono::system_clock::now();
         FrameInfo info = renderer.prepare_frame(position, begin_game && moved);
@@ -139,6 +139,8 @@ int main() {
                 position.render_board();
                 moved = true;
             }
+        } else if (moves.size() == 0 && begin_game) {
+            ImGui::Text("Game over!");
         }
         else {
             if (moved) {
@@ -247,10 +249,10 @@ int main() {
                 }
             }
             if (whiteAI) {
-                ImGui::Text("White AI's absolute score: %f", std::abs(white_score));
+                ImGui::Text("White AI's score: %f", white_score);
             }
             if (blackAI) {
-                ImGui::Text("Black AI's absolute score: %f", std::abs(black_score));
+                ImGui::Text("Black AI's score: %f", -1 * black_score);
             }
             if (ImGui::CollapsingHeader("History", ImGuiTreeNodeFlags_CollapsingHeader | ImGuiTreeNodeFlags_DefaultOpen)) {
                 for (int i=history.size() - 1; i > -1; --i) {
@@ -266,7 +268,7 @@ int main() {
             
             if (show_fps) {
                 ImGui::BulletText("Fps: %i", (int)std::round(1/delta_time));
-                ImGui::BulletText("Frame Time: %f millisec", std::round(delta_time * 100000) / 1000);
+                ImGui::BulletText("Frame Time: %f millisec", std::round(delta_time * 1000000) / 1000);
             }
 
             if (show_ai_process_time) {
