@@ -5,16 +5,24 @@
 #include <future>
 
 const int MAX_HISTORY_SIZE = 10;
-vector<Position> history;
+struct HistoryInfo {
+    Position position;
+    Move move;
+    HistoryInfo(Position p_position, Move p_move) {
+        position = p_position;
+        move = p_move;
+    }
+};
+vector<HistoryInfo> history;
 
 bool blackAI = false;
 bool whiteAI = false;
 
-void update_history(const Position p_position) {
+void update_history(const Position p_position, const Move p_move) {
     if (history.size() + 1 > MAX_HISTORY_SIZE) {
         history.erase(history.begin());
     }
-    history.push_back(p_position);
+    history.push_back(HistoryInfo(p_position, p_move));
 }
 
 // This helper function could eventually be moved to some better place
@@ -31,6 +39,9 @@ bool moved = false;
 bool begin_game = false;
 
 std::array<int, 2> promotable_coords = {-1, -1};
+
+float black_score = 0.0;
+float white_score = 0.0;
 
 int main() {
     Renderer renderer = Renderer(1280, 720);
@@ -125,15 +136,20 @@ int main() {
                 MinmaxValue alpha = MinmaxValue(numeric_limits<float>::lowest(), Move({ 0,0 }, { 0,0 }));
                 MinmaxValue beta = MinmaxValue(numeric_limits<float>::max(), Move({ 0,0 }, { 0,0 }));
                 if (!minmax_result.valid()) {
-                    update_history(position);
                     minmax_result = std::async(&Position::minmax_alphabeta, &position, 4, alpha, beta, true);
                 }
                 else if (is_ready(minmax_result)) {
-                    Move move = minmax_result.get().move;
-                    std::cout<< (position.get_moving_player() == WHITE ? "White " : "Black ")<<"moved from to: "<<move.get_coords()<<std::endl;
-                    position.move(move);
-                    if (position.can_promote(move)) {
-                        position.promote(move.get_end_pos(), move.get_promotable());
+                    MinmaxValue minmax_val = minmax_result.get();
+                    if (position.get_moving_player() == WHITE) {
+                        white_score = minmax_val.value;
+                    } else {
+                        black_score = minmax_val.value;
+                    }
+                    update_history(position, minmax_val.move);
+                    std::cout<< (position.get_moving_player() == WHITE ? "White " : "Black ")<<"moved from to: "<<minmax_val.move.get_coords()<<std::endl;
+                    position.move(minmax_val.move);
+                    if (position.can_promote(minmax_val.move)) {
+                        position.promote(minmax_val.move.get_end_pos(), minmax_val.move.get_promotable());
                     }
                     position.end_turn();
                     moves.clear();
@@ -175,7 +191,7 @@ int main() {
                     if (valid_coords) {
                         Move move = Move(coords);
                         std::cout<< (position.get_moving_player() == WHITE ? "White " : "Black ")<<"moved from to: "<<move.get_coords()<<std::endl;
-                        update_history(position);
+                        update_history(position, move);
                         position.move(move);
                         if (position.can_promote(move)) {
                             promotable_coords = move.get_end_pos();
@@ -195,18 +211,31 @@ int main() {
                     // if pressed do undo
                     if (blackAI || whiteAI && history.size() > 1) {
                         //undo two steps instead of one to get to the last move made by the player (no point in undoing only what the AI does)
-                        position = history[std::max<size_t>(history.size() - 2, 0)];
+                        position = history[std::max<size_t>(history.size() - 2, 0)].position;
                         history.erase(history.end() - 2, history.end());
                     }
                     if (!blackAI && !whiteAI) {
                         //undo one step
-                        position = history[std::max<size_t>(history.size() - 1, 0)];
+                        position = history[std::max<size_t>(history.size() - 1, 0)].position;
                         history.pop_back();
                     }
                     moves.clear();
                     moves = position.generate_legal_moves();
                     position.render_board();
                     moved = true;
+                }
+            }
+            if (whiteAI) {
+                ImGui::Text("White AI's absolute score: %f", std::abs(white_score));
+            }
+            if (blackAI) {
+                ImGui::Text("Black AI's absolute score: %f", std::abs(black_score));
+            }
+            if (ImGui::CollapsingHeader("History", ImGuiTreeNodeFlags_CollapsingHeader | ImGuiTreeNodeFlags_DefaultOpen)) {
+                for (int i=history.size() - 1; i > -1; --i) {
+                    const std::string player = history[i].position.get_moving_player() == WHITE ? "white" : "black";
+                    const std::string result = player + " move: " + history[i].move.get_coords();
+                    ImGui::BulletText("%s",result.c_str());
                 }
             }
         }
