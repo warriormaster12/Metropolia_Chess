@@ -7,5 +7,6 @@ out/
 .vs/
 
 compile_commands.json
+CMakeSettings.json
 .DS_Store
 *.ini
