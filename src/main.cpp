@@ -43,6 +43,16 @@ std::array<int, 2> promotable_coords = {-1, -1};
 float black_score = 0.0;
 float white_score = 0.0;
 
+//Benchmark
+bool show_fps = false;
+bool show_ai_process_time = false;
+double delta_time = 0.0;
+double ai_delta_time = 0.0;
+double ai_time = 0.0;
+int ai_move_count = 0;
+int current_frame = 0;
+
+
 int main() {
     Renderer renderer = Renderer(1280, 720);
     Position position;
@@ -52,7 +62,12 @@ int main() {
     position.render_legal_moves(moves);
     position.render_board();
     char coords[5] = "";
+    
+    std::chrono::time_point<std::chrono::system_clock> ai_time_start, ai_time_end;
+
     while (renderer.is_active() && moves.size() > 0) {
+        std::chrono::time_point<std::chrono::system_clock> frame_start, frame_end;
+        frame_start = std::chrono::system_clock::now();
         FrameInfo info = renderer.prepare_frame(position, begin_game && moved);
         ImGui::SetNextWindowSizeConstraints(ImVec2(300, 300), ImVec2(640, 480));
         ImGui::Begin("Chess");
@@ -136,10 +151,16 @@ int main() {
                 MinmaxValue alpha = MinmaxValue(numeric_limits<float>::lowest(), Move({ 0,0 }, { 0,0 }));
                 MinmaxValue beta = MinmaxValue(numeric_limits<float>::max(), Move({ 0,0 }, { 0,0 }));
                 if (!minmax_result.valid()) {
+                    ai_time_start = std::chrono::system_clock::now();
                     minmax_result = std::async(&Position::minmax_alphabeta, &position, 4, alpha, beta, true);
                 }
                 else if (is_ready(minmax_result)) {
                     MinmaxValue minmax_val = minmax_result.get();
+                    ai_time_end = std::chrono::system_clock::now();
+                    std::chrono::duration<double> elapsed_seconds = ai_time_end - ai_time_start;
+                    ai_delta_time = elapsed_seconds.count();
+                    ai_time += ai_delta_time;
+                    ai_move_count += 1;
                     if (position.get_moving_player() == WHITE) {
                         white_score = minmax_val.value;
                     } else {
@@ -239,8 +260,32 @@ int main() {
                 }
             }
         }
+        if (ImGui::CollapsingHeader("Benchmark")) {
+            ImGui::Checkbox("Show Fps", &show_fps);
+            ImGui::Checkbox("Show AI Process Time", &show_ai_process_time);
+            
+            if (show_fps) {
+                ImGui::BulletText("Fps: %i", (int)std::round(1/delta_time));
+                ImGui::BulletText("Frame Time: %f millisec", std::round(delta_time * 100000) / 1000);
+            }
+
+            if (show_ai_process_time) {
+                ImGui::BulletText("AI Process Time: %f sec", ai_delta_time);
+                ImGui::BulletText("AI Average Time: %f sec", ai_time/ai_move_count);
+            }
+        }
         ImGui::End();
         renderer.render_board(info);
+
+        frame_end = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = frame_end - frame_start;
+        if (current_frame % 100 == 0 ) {
+            delta_time = elapsed_seconds.count();
+        }
+        current_frame++;
+        if (current_frame > 9999999){
+            current_frame = 0;
+        }
     }
     if (minmax_result.valid() && !is_ready(minmax_result)) {
         minmax_result.wait();
