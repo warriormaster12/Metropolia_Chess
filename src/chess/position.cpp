@@ -75,7 +75,16 @@ bool Position::is_square_threatened(int row, int col, int threatening_player) co
     vector<Move> moves = get_all_raw_moves(threatening_player);
     for (int i=0; i < moves.size(); ++i) {
         const Move& move = moves[i];
-        if (move.get_end_pos()[0] == row && move.get_end_pos()[1] == col) {
+        int chess_piece = m_board[move.get_start_pos()[0]][move.get_start_pos()[1]];
+        if (chess_piece == wP) {
+            if (move.get_start_pos()[0] - 1 == row && (move.get_start_pos()[1] + 1 == col || move.get_start_pos()[1] - 1 == col))
+                return true;
+        }
+        else if (chess_piece == bP) {
+            if (move.get_start_pos()[0] + 1 == row && (move.get_start_pos()[1] + 1 == col || move.get_start_pos()[1] - 1 == col))
+                return true;
+        }
+        else if (move.get_end_pos()[0] == row && move.get_end_pos()[1] == col) {
             return true;
         }
     }

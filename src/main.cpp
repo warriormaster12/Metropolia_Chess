@@ -82,7 +82,7 @@ int main() {
                 begin_game = true;
                 moved = true;
             }
-            if (ImGui::Button("Play as BLACK against WHITE AI playing as WHITE")) {
+            if (ImGui::Button("Play as BLACK against WHITE AI")) {
                 whiteAI = true;
                 begin_game = true;
                 moved = true;
