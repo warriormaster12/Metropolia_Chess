@@ -40,6 +40,7 @@ public:
   vector<Move> get_castlings(int player) const;
   vector<Move> generate_legal_moves(const bool ai_legal_moves = false) const;
   int get_moving_player() const {return m_movingturn;}
+  int get_winner();
 
   float score_end_result(const int p_depth) const; 
 

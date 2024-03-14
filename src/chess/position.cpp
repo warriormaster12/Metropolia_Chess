@@ -658,3 +658,14 @@ void Position::render_legal_moves(const vector<Move>& p_moves) {
 
     std::cout<<"Legal move count: "<<p_moves.size()<<std::endl;
 }
+
+int Position::get_winner() {
+    int row, col;
+    get_chess_piece(wK, row, col);
+    if (is_square_threatened(row, col, BLACK))
+        return -1;
+    get_chess_piece(bK, row, col);
+    if (is_square_threatened(row, col, WHITE))
+        return 1;
+    return 0;
+}

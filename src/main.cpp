@@ -141,13 +141,22 @@ int main() {
             }
         } else if (moves.size() == 0 && begin_game) {
             ImGui::Text("Game over!");
+            int winner = position.get_winner();
+            if (winner == 1) {
+                ImGui::Text("White won!");
+            }
+            if (winner == -1) {
+                ImGui::Text("Black won!");
+            }
+            if (winner == 0) {
+                ImGui::Text("Stalemate.");
+            }
         }
         else {
             if (moved) {
                 moved = false;
             }
             ImGui::Text(position.get_moving_player() == WHITE ? "White's turn" : "Black's turn");
-            //ImGui::SetKeyboardFocusHere(); // keeps the cursor in focus after hitting enter
 
             if (position.get_moving_player() == BLACK && blackAI || position.get_moving_player() == WHITE && whiteAI) {
                 MinmaxValue alpha = MinmaxValue(numeric_limits<float>::lowest(), Move({ 0,0 }, { 0,0 }));
@@ -185,24 +194,12 @@ int main() {
             }
             else {
                 ImGui::InputText(
-                    "where to move",
+                    "Input move",
                     coords,
                     5,
                     ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_EscapeClearsAll | ImGuiInputTextFlags_AlwaysOverwrite
                 );
                 size_t char_count = strlen(coords);
-                // if (!undo_lastround) {
-                //     if (history.size() + 1 > MAX_HISTORY_SIZE) {
-                //         history.erase(history.begin());
-                //     }
-                //     history.push_back(position);
-                // }
-                // else {
-                //     undo_lastround = false;
-                // }
-                //     if (char_count == 2) {
-
-                // }
                 if (char_count == 4 && ImGui::IsKeyPressed(ImGuiKey_Enter)) {
                     bool valid_coords = false;
                     for (Move& move : moves) {
@@ -230,22 +227,23 @@ int main() {
                         moved = true;
                     }
                 }
-                if (ImGui::Button("Undo Move") && history.size() > 0) {
-                    // if pressed do undo
-                    if (blackAI || whiteAI && history.size() > 1) {
-                        //undo two steps instead of one to get to the last move made by the player (no point in undoing only what the AI does)
-                        position = history[std::max<size_t>(history.size() - 2, 0)].position;
-                        history.erase(history.end() - 2, history.end());
+                if (((blackAI || whiteAI) && history.size() > 1) || (!whiteAI && !blackAI && history.size() > 0)) {
+                    if (ImGui::Button("Undo Move") && history.size() > 0) {
+                        if (blackAI || whiteAI && history.size() > 1) {
+                            //undo two steps instead of one to get to the last move made by the human player
+                            position = history[std::max<size_t>(history.size() - 2, 0)].position;
+                            history.erase(history.end() - 2, history.end());
+                        }
+                        if (!blackAI && !whiteAI) {
+                            //undo one step
+                            position = history[std::max<size_t>(history.size() - 1, 0)].position;
+                            history.pop_back();
+                        }
+                        moves.clear();
+                        moves = position.generate_legal_moves();
+                        position.render_board();
+                        moved = true;
                     }
-                    if (!blackAI && !whiteAI) {
-                        //undo one step
-                        position = history[std::max<size_t>(history.size() - 1, 0)].position;
-                        history.pop_back();
-                    }
-                    moves.clear();
-                    moves = position.generate_legal_moves();
-                    position.render_board();
-                    moved = true;
                 }
             }
             if (whiteAI) {
@@ -261,19 +259,22 @@ int main() {
                     ImGui::BulletText("%s",result.c_str());
                 }
             }
-        }
-        if (ImGui::CollapsingHeader("Benchmark")) {
-            ImGui::Checkbox("Show Fps", &show_fps);
-            ImGui::Checkbox("Show AI Process Time", &show_ai_process_time);
-            
-            if (show_fps) {
-                ImGui::BulletText("Fps: %i", (int)std::round(1/delta_time));
-                ImGui::BulletText("Frame Time: %f millisec", std::round(delta_time * 1000000) / 1000);
+            if (ImGui::CollapsingHeader("Benchmark")) {
+                ImGui::Checkbox("Show Fps", &show_fps);
+                if (whiteAI || blackAI) {
+                    ImGui::Checkbox("Show AI Process Time", &show_ai_process_time);
+                }
+                if (show_fps) {
+                    ImGui::BulletText("Fps: %i", (int)std::round(1 / delta_time));
+                    ImGui::BulletText("Frame Time: %f millisec", std::round(delta_time * 1000000) / 1000);
+                }
+                if (show_ai_process_time) {
+                    ImGui::BulletText("AI Process Time: %f sec", ai_delta_time);
+                    ImGui::BulletText("AI Average Time: %f sec", ai_time / ai_move_count);
+                }
             }
-
-            if (show_ai_process_time) {
-                ImGui::BulletText("AI Process Time: %f sec", ai_delta_time);
-                ImGui::BulletText("AI Average Time: %f sec", ai_time/ai_move_count);
+            if (ImGui::CollapsingHeader("Help")) {
+                ImGui::TextWrapped("Input the move you want to make into the text box and hit Enter. Input examples: 'a2a3', 'g8f6'.");
             }
         }
         ImGui::End();
